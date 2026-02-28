@@ -1,0 +1,179 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+}
+
+:root {
+  --background: #fafafa;
+  --foreground: #111111;
+
+  --c-bg: #f5f5f4;
+  --c-bg-white: #ffffff;
+  --c-text: #1a1a1a;
+  --c-text-muted: #6b6b6b;
+  --c-accent: #2563EB;
+  --c-border: #d4d4d4;
+  --c-border-light: #e5e5e5;
+
+  --c-header-bg: #1a1a1a;
+  --c-header-text: #fafafa;
+
+  --c-content-text: #333333;
+  --c-content-heading: #111111;
+  --c-content-link: #2563EB;
+  --c-content-code-bg: #f5f5f5;
+  --c-content-code-border: #e5e5e5;
+  --c-content-hr: #d4d4d4;
+  --c-content-blockquote-border: #d4d4d4;
+  --c-content-blockquote-bg: rgba(0, 0, 0, 0.02);
+
+  --c-editor-active-line: rgba(0, 0, 0, 0.03);
+  --c-editor-selection: rgba(37, 99, 235, 0.12);
+}
+
+.dark {
+  --background: #0e0e0e;
+  --foreground: #d4d4d4;
+
+  --c-bg: #141414;
+  --c-bg-white: #1a1a1a;
+  --c-text: #d4d4d4;
+  --c-text-muted: #777777;
+  --c-accent: #60A5FA;
+  --c-border: #333333;
+  --c-border-light: #252525;
+
+  --c-header-bg: #1e1e1e;
+  --c-header-text: #d4d4d4;
+
+  --c-content-text: #b8b8b8;
+  --c-content-heading: #d4d4d4;
+  --c-content-link: #60A5FA;
+  --c-content-code-bg: #1a1a1a;
+  --c-content-code-border: #2a2a2a;
+  --c-content-hr: #2a2a2a;
+  --c-content-blockquote-border: #333333;
+  --c-content-blockquote-bg: rgba(255, 255, 255, 0.02);
+
+  --c-editor-active-line: rgba(255, 255, 255, 0.04);
+  --c-editor-selection: rgba(96, 165, 250, 0.18);
+
+  color-scheme: dark;
+}
+
+* {
+  scrollbar-width: thin;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.dark .prose-wiki {
+  color: var(--c-content-text);
+}
+.dark .prose-wiki h1,
+.dark .prose-wiki h2,
+.dark .prose-wiki h3,
+.dark .prose-wiki h4 {
+  color: var(--c-content-heading);
+}
+.dark .prose-wiki a {
+  color: var(--c-content-link);
+}
+.dark .prose-wiki code {
+  background-color: var(--c-content-code-bg);
+  border-color: var(--c-content-code-border);
+  color: var(--c-content-text);
+}
+.dark .prose-wiki pre {
+  background-color: var(--c-content-code-bg) !important;
+  border-color: var(--c-content-code-border);
+}
+.dark .prose-wiki hr {
+  border-color: var(--c-content-hr);
+}
+.dark .prose-wiki blockquote {
+  border-left-color: var(--c-content-blockquote-border);
+  background-color: var(--c-content-blockquote-bg);
+}
+.dark .prose-wiki table th {
+  background-color: var(--c-header-bg);
+  color: var(--c-header-text);
+}
+.dark .prose-wiki table td {
+  border-color: var(--c-border-light);
+}
+.dark .katex {
+  color: var(--c-text);
+}
+
+/* CodeMirror overrides */
+.cm-editor {
+  height: 100% !important;
+  font-variant-ligatures: none;
+}
+.cm-editor .cm-scroller {
+  font-family: var(--font-editor), "JetBrains Mono", "Fira Code", "Consolas", monospace !important;
+}
+.cm-editor.cm-focused {
+  outline: none !important;
+}
+.cm-editor .cm-content {
+  caret-color: var(--c-accent);
+}
+.cm-editor .cm-cursor {
+  border-left-color: var(--c-accent);
+  border-left-width: 2px;
+}
+.cm-editor .cm-gutters {
+  background-color: var(--c-bg);
+  color: var(--c-text-muted);
+  border-right: 1px solid var(--c-border-light);
+}
+.cm-editor .cm-activeLineGutter {
+  background-color: var(--c-editor-active-line);
+}
+.cm-editor .cm-activeLine {
+  background-color: var(--c-editor-active-line);
+}
+.cm-editor .cm-selectionBackground {
+  background-color: var(--c-editor-selection) !important;
+}
+.cm-editor.cm-focused .cm-selectionBackground {
+  background-color: var(--c-editor-selection) !important;
+}
+.cm-editor .cm-lineNumbers .cm-gutterElement {
+  padding: 0 12px 0 8px;
+  font-size: 12px;
+  min-width: 40px;
+  opacity: 0.6;
+}
+.cm-editor .cm-line {
+  padding: 0 16px;
+  line-height: 1.65;
+}
+.cm-editor .cm-foldGutter {
+  width: 14px;
+}
+
+.noise-overlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.03;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-size: 128px 128px;
+}
+
+@keyframes theme-toggle-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(180deg); }
+}
+.theme-toggle-icon {
+  animation: theme-toggle-spin 0.3s ease-out;
+}

@@ -1,0 +1,65 @@
+{
+  "name": "@wikipefia/mdx-compiler",
+  "version": "1.0.5",
+  "description": "Shared MDX compiler, schemas, and validation for Wikipefia content repositories",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./schemas": {
+      "types": "./dist/schemas/index.d.ts",
+      "import": "./dist/schemas/index.js"
+    },
+    "./validate": {
+      "types": "./dist/validate.d.ts",
+      "import": "./dist/validate.js"
+    },
+    "./compile": {
+      "types": "./dist/compile.d.ts",
+      "import": "./dist/compile.js"
+    },
+    "./components": {
+      "types": "./dist/components/registry.d.ts",
+      "import": "./dist/components/registry.js"
+    }
+  },
+  "bin": {
+    "wikipefia-mdx": "./dist/cli/index.js"
+  },
+  "files": [
+    "dist",
+    "action.yml",
+    "action"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "pnpm build"
+  },
+  "dependencies": {
+    "@mdx-js/mdx": "^3.1.1",
+    "gray-matter": "^4.0.3",
+    "hast-util-to-string": "^3.0.1",
+    "rehype-autolink-headings": "^7.1.0",
+    "rehype-katex": "^7.0.1",
+    "rehype-slug": "^6.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
+    "unist-util-visit": "^5.1.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/mdast": "^4.0.4",
+    "@types/hast": "^3.0.4",
+    "@types/node": "^22",
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT"
+}
