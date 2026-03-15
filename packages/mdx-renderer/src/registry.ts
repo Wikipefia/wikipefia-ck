@@ -212,7 +212,7 @@ export const componentRegistry: Record<string, ComponentEntry> = {
       label: "Data Table",
       description: "Structured data table",
       category: "data",
-      snippet: `<DataTable>\n| Column A | Column B |\n|----------|----------|\n| Cell 1   | Cell 2   |\n</DataTable>`,
+      snippet: `<DataTable caption="Table" columns={["Column A", "Column B"]} rows={[["Cell 1", "Cell 2"]]} />`,
     },
   },
 

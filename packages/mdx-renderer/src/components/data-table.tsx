@@ -25,8 +25,8 @@ interface DataTableProps {
 
 export function DataTable({
   caption,
-  columns,
-  rows,
+  columns = [],
+  rows = [],
   sortable = false,
 }: DataTableProps) {
   const [sortCol, setSortCol] = useState<number | null>(null);
