@@ -1,6 +1,9 @@
 // Components
 export * from "./components";
 
+// Component registry (single source of truth)
+export * from "./registry";
+
 // Typography (HTML element overrides)
 export { createTypography } from "./typography";
 

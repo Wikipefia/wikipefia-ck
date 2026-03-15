@@ -223,6 +223,9 @@ importers:
       '@mdx-js/mdx':
         specifier: ^3.1.1
         version: 3.1.1
+      '@wikipefia/mdx-renderer':
+        specifier: workspace:*
+        version: link:../mdx-renderer
       gray-matter:
         specifier: ^4.0.3
         version: 4.0.3

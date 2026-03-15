@@ -5,7 +5,8 @@ type AnyProps = Record<string, any>;
 
 interface TypographyOptions {
   /** Custom link component (e.g. Next.js Link). Falls back to <a>. */
-  Link?: ComponentType<AnyProps>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Link?: ComponentType<any>;
 }
 
 /**

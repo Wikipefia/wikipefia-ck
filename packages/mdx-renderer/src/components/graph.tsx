@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Children, type ReactNode } from "react";
+import { useState, useId, Children, type ReactNode } from "react";
 import { safeEval } from "../math/safe-eval";
 import { C } from "../theme";
 
@@ -80,7 +80,7 @@ export function Graph({
   xDomain: xDomainProp, yDomain: yDomainProp,
   width = 600, height = 380, children,
 }: GraphProps) {
-  const [clipId] = useState(() => `gc${Math.random().toString(36).slice(2, 8)}`);
+  const clipId = useId();
 
   const plots: PlotProps[] = [];
   const sliderDefs: SliderProps[] = [];
