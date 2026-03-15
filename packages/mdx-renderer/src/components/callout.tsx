@@ -1,7 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { C } from "@/lib/theme";
+import { useLabels } from "../labels";
+import { C } from "../theme";
 
 type CalloutType = "info" | "warning" | "error";
 
@@ -12,33 +13,35 @@ interface CalloutProps {
 
 const config: Record<
   CalloutType,
-  { border: string; bg: string; icon: string; accent: string; label: string }
+  { border: string; bg: string; icon: string; accent: string; key: keyof ReturnType<typeof useLabels> }
 > = {
   info: {
     border: "#2563EB",
     bg: "rgba(37, 99, 235, 0.05)",
     icon: "ℹ",
     accent: "#2563EB",
-    label: "NOTE",
+    key: "note",
   },
   warning: {
     border: "#D97706",
     bg: "rgba(217, 119, 6, 0.05)",
     icon: "▲",
     accent: "#D97706",
-    label: "WARNING",
+    key: "warning",
   },
   error: {
     border: "#DC2626",
     bg: "rgba(220, 38, 38, 0.05)",
     icon: "✕",
     accent: "#DC2626",
-    label: "DANGER",
+    key: "danger",
   },
 };
 
 export function Callout({ type = "info", children }: CalloutProps) {
+  const labels = useLabels();
   const c = config[type] || config.info;
+  const label = labels[c.key];
 
   return (
     <aside
@@ -57,7 +60,7 @@ export function Callout({ type = "info", children }: CalloutProps) {
           className="text-[11px] font-bold tracking-[0.15em] uppercase"
           style={{ fontFamily: "var(--font-mono)" }}
         >
-          {c.label}
+          {label}
         </span>
       </div>
       <div

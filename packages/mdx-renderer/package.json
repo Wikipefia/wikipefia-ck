@@ -1,0 +1,20 @@
+{
+  "name": "@wikipefia/mdx-renderer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./components": "./src/components/index.ts",
+    "./theme": "./src/theme.ts",
+    "./labels": "./src/labels.tsx"
+  },
+  "peerDependencies": {
+    "react": ">=19",
+    "react-dom": ">=19"
+  },
+  "dependencies": {
+    "expr-eval": "^2.0.2",
+    "framer-motion": "^12.33.0"
+  }
+}

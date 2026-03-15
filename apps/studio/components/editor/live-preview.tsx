@@ -6,7 +6,7 @@ import {
   type ComponentType,
   type ReactNode,
 } from "react";
-import { run } from "@mdx-js/mdx";
+import { run, type RunOptions } from "@mdx-js/mdx";
 import * as jsxRuntime from "react/jsx-runtime";
 import { mdxComponents } from "@/lib/mdx-components";
 import { C } from "@/lib/theme";
@@ -48,7 +48,8 @@ function ErrorFallback({ error }: { error: string }) {
 }
 
 function PreviewContent({ compiled }: { compiled: string }) {
-  const [content, setContent] = useState<ComponentType | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [content, setContent] = useState<ComponentType<any> | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -57,7 +58,7 @@ function PreviewContent({ compiled }: { compiled: string }) {
     async function evaluate() {
       try {
         const { default: MDXContent } = await run(compiled, {
-          ...(jsxRuntime as Record<string, unknown>),
+          ...(jsxRuntime as unknown as RunOptions),
           baseUrl: typeof window !== "undefined" ? window.location.href : "",
         });
         if (!cancelled) {

@@ -3,9 +3,10 @@
 import { useState, useCallback, useRef, useTransition, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { compileAction, type CompileActionResult } from "@/app/actions/compile";
-import { CodeEditor } from "@/components/editor/code-editor";
+import { CodeEditor, type CodeEditorHandle } from "@/components/editor/code-editor";
 import { LivePreview } from "@/components/editor/live-preview";
 import { StatusBar, type CompileStatus } from "@/components/editor/status-bar";
+import { ComponentMenu } from "@/components/editor/component-menu";
 import { useTheme } from "@/components/shared/theme-provider";
 import { C } from "@/lib/theme";
 import { DEFAULT_CONTENT } from "@/lib/default-content";
@@ -23,8 +24,10 @@ export default function EditorPage() {
   const [isPending, startTransition] = useTransition();
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
   const [splitPos, setSplitPos] = useState(50);
+  const [menuOpen, setMenuOpen] = useState(true);
   const isDragging = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<CodeEditorHandle>(null);
 
   const doCompile = useCallback(
     (value: string) => {
@@ -85,6 +88,13 @@ export default function EditorPage() {
     document.addEventListener("mousemove", handleMove);
     document.addEventListener("mouseup", handleUp);
   }, []);
+
+  const handleInsertComponent = useCallback(
+    (snippet: string) => {
+      editorRef.current?.insertAtCursor("\n" + snippet + "\n");
+    },
+    []
+  );
 
   const lineCount = source.split("\n").length;
 
@@ -168,7 +178,7 @@ export default function EditorPage() {
         style={{ borderColor: C.borderLight, backgroundColor: C.bg }}
       >
         <div
-          className="flex items-center px-4 h-8 border-r"
+          className="flex items-center justify-between px-4 h-8 border-r"
           style={{ width: `${splitPos}%`, borderColor: C.borderLight }}
         >
           <span
@@ -177,6 +187,18 @@ export default function EditorPage() {
           >
             ■ Editor
           </span>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            className="text-[9px] font-bold uppercase tracking-[0.12em] px-2 py-0.5 cursor-pointer transition-colors"
+            style={{
+              fontFamily: "var(--font-mono)",
+              color: menuOpen ? C.accent : C.textMuted,
+              border: `1px solid ${menuOpen ? C.accent : C.borderLight}`,
+            }}
+          >
+            + Components
+          </button>
         </div>
         <div className="flex items-center px-4 h-8">
           <span
@@ -192,14 +214,22 @@ export default function EditorPage() {
       <div ref={containerRef} className="flex flex-1 min-h-0">
         {/* Editor panel */}
         <div
-          className="flex flex-col min-h-0"
+          className="flex min-h-0"
           style={{
             width: `${splitPos}%`,
             backgroundColor: C.bgWhite,
           }}
         >
+          {menuOpen && (
+            <div
+              className="shrink-0 min-h-0"
+              style={{ width: 220 }}
+            >
+              <ComponentMenu onInsert={handleInsertComponent} />
+            </div>
+          )}
           <div className="flex-1 min-h-0 overflow-hidden">
-            <CodeEditor value={source} onChange={handleChange} />
+            <CodeEditor ref={editorRef} value={source} onChange={handleChange} />
           </div>
         </div>
 

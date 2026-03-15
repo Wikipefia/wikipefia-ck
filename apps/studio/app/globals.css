@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@source "../../../packages/mdx-renderer/src";
 
 @theme inline {
   --color-background: var(--background);

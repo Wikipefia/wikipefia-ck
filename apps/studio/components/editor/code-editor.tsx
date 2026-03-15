@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from "react";
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection, highlightSpecialChars } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
@@ -39,18 +39,35 @@ const studioHighlight = HighlightStyle.define([
   { tag: tags.contentSeparator, color: "var(--c-border)" },
 ]);
 
+export interface CodeEditorHandle {
+  insertAtCursor: (text: string) => void;
+}
+
 interface CodeEditorProps {
   value: string;
   onChange: (value: string) => void;
 }
 
-export function CodeEditor({ value, onChange }: CodeEditorProps) {
+export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function CodeEditor({ value, onChange }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
   const isExternalUpdate = useRef(false);
+
+  useImperativeHandle(ref, () => ({
+    insertAtCursor(text: string) {
+      const view = viewRef.current;
+      if (!view) return;
+      const { from, to } = view.state.selection.main;
+      view.dispatch({
+        changes: { from, to, insert: text },
+        selection: { anchor: from + text.length },
+      });
+      view.focus();
+    },
+  }));
 
   const createExtensions = useCallback(() => [
     lineNumbers(),
@@ -126,4 +143,4 @@ export function CodeEditor({ value, onChange }: CodeEditorProps) {
       style={{ fontSize: "14px" }}
     />
   );
-}
+});

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { C } from "@/lib/theme";
+import { C } from "../theme";
 
 interface DefinitionProps {
   term: string;
