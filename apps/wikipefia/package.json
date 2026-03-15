@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --port 2645",
     "build": "pnpm build:compiler && pnpm content:pull && pnpm content:compile && next build",
     "build:local": "pnpm build:compiler && pnpm content:compile && next build",
     "build:compiler": "pnpm --filter @wikipefia/mdx-compiler build",
