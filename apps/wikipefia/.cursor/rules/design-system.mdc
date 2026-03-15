@@ -1,0 +1,193 @@
+---
+description: Полная спецификация дизайн-системы Wikipefia — цвета, типографика, компоненты, паттерны. Используй при создании/редактировании любого UI.
+globs: "**/*.tsx,**/*.css"
+alwaysApply: false
+---
+
+# Wikipefia Design System
+
+Эстетика: **брутальный редакционный минимализм** — газетная верстка, жёсткая сетка, uppercase-типографика, нулевые скругления, тонкие геометрические бордюры, монохром + один акцентный цвет. Никаких градиентов, теней (кроме диалогов), скруглённых углов.
+
+## Технологии
+
+- **Tailwind CSS v4** (без `tailwind.config` — через `@theme inline` в CSS)
+- **Motion** (`motion/react`) для анимаций
+- Никаких shadcn/ui, Radix, или UI-библиотек — все компоненты кастомные
+- Стили через inline `style={{ ... }}` с токенами из `C` (`@/lib/theme`) + Tailwind классы
+
+## Шрифты
+
+| Переменная | Шрифт | Веса | Роль |
+|---|---|---|---|
+| `--font-mono` | **Noto Sans** | 400, 500, 600, 700 | UI, заголовки, метки, навигация — основной шрифт |
+| `--font-serif` | **IBM Plex Serif** | 400, 500, 600 | Тело контента в MDX (Callout, Definition, Collapse body, Timeline descriptions) |
+
+Применение: `fontFamily: "var(--font-mono)"` или `fontFamily: "var(--font-serif)"`.
+
+## CSS-переменные (Light / Dark)
+
+### Основные токены
+
+| Переменная | Light | Dark | Назначение |
+|---|---|---|---|
+| `--background` | `#fafafa` | `#0e0e0e` | Фон body |
+| `--foreground` | `#111111` | `#d4d4d4` | Цвет текста body |
+| `--c-bg` | `#f5f5f4` | `#141414` | Фон секций, карточек, header-бар страницы |
+| `--c-bg-white` | `#ffffff` | `#1a1a1a` | Фон контентных блоков (карточки, диалог поиска) |
+| `--c-text` | `#1a1a1a` | `#d4d4d4` | Основной текст |
+| `--c-text-muted` | `#6b6b6b` | `#777777` | Вторичный текст, описания, метки |
+| `--c-accent` | `#2563EB` | `#60A5FA` | Акцент: ссылки, активные табы, секционные метки |
+| `--c-border` | `#d4d4d4` | `#333333` | Толстые бордюры (`border-2`) |
+| `--c-border-light` | `#e5e5e5` | `#252525` | Тонкие бордюры (разделители, `border`) |
+| `--c-header-bg` | `#1a1a1a` | `#1e1e1e` | Инвертированная шапка (заголовки таблиц, категорий) |
+| `--c-header-text` | `#fafafa` | `#d4d4d4` | Текст на инвертированной шапке |
+
+### MDX-контентные токены
+
+| Переменная | Light | Dark |
+|---|---|---|
+| `--c-content-text` | `#333333` | `#b8b8b8` |
+| `--c-content-heading` | `#111111` | `#d4d4d4` |
+| `--c-content-link` | `#2563EB` | `#60A5FA` |
+| `--c-content-code-bg` | `#f5f5f5` | `#1a1a1a` |
+| `--c-content-code-border` | `#e5e5e5` | `#2a2a2a` |
+| `--c-content-hr` | `#d4d4d4` | `#2a2a2a` |
+| `--c-content-blockquote-border` | `#d4d4d4` | `#333333` |
+| `--c-content-blockquote-bg` | `rgba(0,0,0,0.02)` | `rgba(255,255,255,0.02)` |
+
+### JS-токены (`C` из `@/lib/theme`)
+
+```typescript
+import { C } from "@/lib/theme";
+// C.bg, C.bgWhite, C.text, C.textMuted, C.accent,
+// C.border, C.borderLight, C.headerBg, C.headerText
+```
+
+## Палитра предметов (Subject Palette)
+
+10 акцентных цветов, каждому — уникальный Unicode-символ:
+
+| Цвет | HEX | Иконка |
+|---|---|---|
+| Indigo | `#6366F1` | ∑ |
+| Amber | `#D97706` | ◈ |
+| Emerald | `#059669` | ⬡ |
+| Pink | `#DB2777` | ✦ |
+| Blue | `#2563EB` | △ |
+| Violet | `#7C3AED` | ⌬ |
+| Orange | `#EA580C` | ◉ |
+| Teal | `#0D9488` | ❖ |
+| Red | `#DC2626` | ⊕ |
+| Cyan | `#0891B2` | ⊿ |
+
+Выбор цвета — хеш от slug: `getSubjectTheme(slug)`.
+
+## Типографика
+
+### Заголовки (MDX `h1`–`h4`)
+
+- Всегда `uppercase`, `font-bold`
+- `h1`: `text-3xl md:text-4xl tracking-tighter mb-6`
+- `h2`: `text-2xl mt-10 mb-4`
+- `h3`: `text-lg mt-8 mb-3`
+- `h4`: `text-base mt-6 mb-2`
+- Все имеют `scroll-mt-20`–`scroll-mt-24` для якорей
+
+### Героические заголовки (страницы)
+
+- Главная: `text-6xl md:text-[100px] font-bold leading-none tracking-tighter uppercase`
+- Предмет: `text-4xl md:text-6xl font-bold leading-none tracking-tighter uppercase`
+- Статья: `text-3xl md:text-5xl font-bold leading-tight tracking-tighter uppercase`
+
+### Параграфы
+
+- `text-[16px] leading-[1.85] mb-5`, шрифт `var(--font-mono)`
+
+### Метки и микротекст
+
+- Секционные метки: `text-[11px] font-bold uppercase tracking-wider`, цвет `C.accent`
+- Бейджи: `text-[11px] font-bold px-2 py-0.5 uppercase tracking-wider`, фон `C.headerBg`
+- Футер таблицы: `text-[9px] uppercase tracking-[0.15em]`
+- Хлебные крошки: `text-[11px] uppercase tracking-wider`
+- ToC-ссылки: `text-[12px] uppercase`
+- Категории боковой панели: `text-[10px] uppercase tracking-[0.2em] font-extrabold`
+
+### Контент в MDX-компонентах
+
+- Тело: `text-[13px]`–`text-[15px] leading-[1.75]`, шрифт `var(--font-serif)`
+- Заголовки компонентов: `text-[10px]`–`text-[11px] font-bold uppercase tracking-[0.1em]–[0.15em]`, шрифт `var(--font-mono)`
+
+## Компоненты: паттерны
+
+### Структура блочных MDX-компонентов
+
+```
+┌── border-2 (C.border) ──────────────────┐
+│ HEADER BAR: C.headerBg + C.headerText   │  ← px-4 py-2.5, text-[10px], uppercase, "■ TITLE"
+├── border-b-2 ───────────────────────────┤
+│ CONTENT                                  │  ← px-4 py-4, font-serif, text-[13px]
+├── border-t (C.borderLight) ─────────────┤
+│ FOOTER: row count / meta                 │  ← px-4 py-1.5, text-[9px], uppercase
+└──────────────────────────────────────────┘
+```
+
+Этот паттерн используют: `DataTable`, `Timeline`, `Comparison`, `Tabs`, `Collapse`, `StepByStep`, `FlowDiagram`, `BarChart`, `Diagram`.
+
+### Инвертированная шапка (Header Bar)
+
+```tsx
+<div className="px-4 py-2.5 border-b-2" style={{ borderColor: C.border, backgroundColor: C.headerBg }}>
+  <span className="text-[10px] font-bold uppercase tracking-[0.15em]" style={{ fontFamily: "var(--font-mono)", color: C.headerText }}>
+    ■ {title}
+  </span>
+</div>
+```
+
+### Карточки-ссылки
+
+- `border` + `borderColor: C.borderLight`, нулевые скругления
+- Hover: `group-hover:underline` на заголовке
+- Внутри: `px-4 py-3`–`py-4`
+
+### Кнопки
+
+- `h-[34px] w-[34px]` для иконочных (тема, локаль)
+- `border`, `flex items-center justify-center`
+- Текст: `text-[11px] font-bold uppercase`
+
+### Диалог поиска
+
+- `fixed inset-0 z-50`, backdrop `rgba(0,0,0,0.5)`
+- `max-w-2xl`, `border`, `shadow-xl` (единственное исключение с тенью)
+- Анимация: Motion `opacity + y: -10` → `y: 0`, duration `0.15s`
+
+### Callout
+
+- `border-left: 4px solid {color}`, фон `rgba({color}, 0.05)`
+- Типы: `info` (#2563EB), `warning` (#D97706), `error` (#DC2626)
+- Иконки: `ℹ`, `▲`, `✕`
+
+## Layout
+
+- Контейнер: `max-w-7xl mx-auto px-4` (страницы), `max-w-4xl` (статьи MDX)
+- Header: `h-14`, `sticky top-0 z-40`, `border-b`
+- Секции разделяются `border-b` (`borderColor: C.borderLight`)
+- Статья: трёхколоночный `grid-cols-[200px_1fr_200px]` (left sidebar + content + ToC)
+- Вертикальные отступы секций: `py-12`–`py-16`
+
+## Анимации
+
+- **Появление при загрузке**: `initial={{ opacity: 0 }}` → `animate={{ opacity: 1 }}`, stagger через `delay: i * 0.05`–`0.1`
+- **Появление при скролле**: `whileInView={{ opacity: 1, y: 0 }}` с `initial={{ opacity: 0, y: 6–10 }}`, `viewport={{ once: true }}`
+- **Тема**: `theme-toggle-spin` — поворот 180° за 0.3s
+- **Grain overlay**: анимированная SVG-текстура шума, `opacity: 0.025`, `z-index: 100`
+- **Noise overlay**: статическая SVG-текстура, `opacity: 0.03`
+
+## Ключевые правила
+
+1. **Никогда** не использовать `rounded-*` — все углы прямые
+2. **Uppercase везде** — заголовки, метки, навигация, бейджи, хлебные крошки
+3. Цвета только через CSS-переменные (`C.*`) — никаких хардкодов (кроме палитры предметов)
+4. Бордюры: `border-2` для контейнеров MDX-компонентов, `border` для карточек и разделителей
+5. Шрифт UI/заголовков: `var(--font-mono)` (Noto Sans), шрифт контента: `var(--font-serif)` (IBM Plex Serif)
+6. Поддержка тёмной темы через класс `.dark` на `<html>` и CSS-переменные

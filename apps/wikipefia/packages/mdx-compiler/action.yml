@@ -1,0 +1,37 @@
+name: "Wikipefia MDX Validator"
+description: "Validate MDX content against Wikipefia schemas and compilation pipeline"
+
+inputs:
+  content-dir:
+    description: "Path to the content repository root (containing articles/ and config.json)"
+    required: false
+    default: "."
+  type:
+    description: "Content type: 'subject' or 'teacher'. When set, also validates config.json"
+    required: false
+  node-version:
+    description: "Node.js version to use"
+    required: false
+    default: "22"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Install @wikipefia/mdx-compiler
+      shell: bash
+      run: npm install -g @wikipefia/mdx-compiler@latest
+
+    - name: Run validation
+      shell: bash
+      working-directory: ${{ inputs.content-dir }}
+      run: |
+        ARGS="validate ."
+        if [ -n "${{ inputs.type }}" ]; then
+          ARGS="$ARGS --type ${{ inputs.type }}"
+        fi
+        wikipefia-mdx $ARGS

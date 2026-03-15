@@ -1,0 +1,35 @@
+name: Deploy to Vercel
+
+# Rebuild and deploy when:
+# 1. Code is pushed to main
+# 2. A content repo dispatches "content-updated"
+# 3. Manually triggered via workflow_dispatch
+
+on:
+  push:
+    branches: [main]
+  repository_dispatch:
+    types: [content-updated]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Trigger Vercel deployment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log trigger source
+        run: |
+          echo "Triggered by: ${{ github.event_name }}"
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "Source repo: ${{ github.event.client_payload.repo }}"
+            echo "Source SHA:  ${{ github.event.client_payload.sha }}"
+          fi
+
+      - name: Deploy via Vercel Deploy Hook
+        env:
+          VERCEL_DEPLOY_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+        run: |
+          curl -fsS -X POST "$VERCEL_DEPLOY_HOOK" \
+            -H "Content-Type: application/json" \
+            || { echo "::error::Deploy hook request failed"; exit 1; }
+          echo "Vercel deployment triggered successfully."

@@ -1,0 +1,28 @@
+{
+  "subjects": [
+    {
+      "repo": "wikipefia/subject-repo-template",
+      "branch": "main",
+      "path": ".",
+      "targetDir": "content/subjects/discrete-mathematics"
+    },
+    {
+      "repo": "wikipefia/subject-economic",
+      "branch": "main",
+      "path": ".",
+      "targetDir": "content/subjects/economics"
+    }
+  ],
+  "teachers": {
+    "repo": "wikipefia/teachers",
+    "branch": "main",
+    "path": ".",
+    "targetDir": "content/teachers"
+  },
+  "system": {
+    "repo": "wikipefia/system-articles",
+    "branch": "main",
+    "path": ".",
+    "targetDir": "content/system"
+  }
+}
