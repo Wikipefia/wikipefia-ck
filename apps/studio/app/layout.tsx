@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Serif, JetBrains_Mono, Noto_Sans } from "next/font/google";
 import { ThemeProvider } from "@/components/shared/theme-provider";
+import { ConvexClientProvider } from "@/components/shared/convex-provider";
 import "katex/dist/katex.min.css";
 import "./globals.css";
 
@@ -42,7 +43,9 @@ export default function RootLayout({
       <body
         className={`${notoSans.variable} ${plexSerif.variable} ${jetbrains.variable} antialiased`}
       >
-        <ThemeProvider>{children}</ThemeProvider>
+        <ConvexClientProvider>
+          <ThemeProvider>{children}</ThemeProvider>
+        </ConvexClientProvider>
       </body>
     </html>
   );

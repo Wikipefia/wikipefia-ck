@@ -9,6 +9,8 @@ interface StatusBarProps {
   error?: string | null;
   diagnosticsCount?: number;
   lineCount?: number;
+  scrollSync?: boolean;
+  onToggleScrollSync?: () => void;
 }
 
 const statusConfig: Record<
@@ -26,6 +28,8 @@ export function StatusBar({
   error,
   diagnosticsCount = 0,
   lineCount = 0,
+  scrollSync,
+  onToggleScrollSync,
 }: StatusBarProps) {
   const cfg = statusConfig[status];
 
@@ -74,6 +78,17 @@ export function StatusBar({
       </div>
 
       <div className="flex items-center gap-4">
+        {onToggleScrollSync && (
+          <button
+            type="button"
+            onClick={onToggleScrollSync}
+            className="text-[9px] font-bold uppercase tracking-[0.1em] cursor-pointer transition-colors"
+            style={{ color: scrollSync ? C.accent : C.textMuted }}
+            title={scrollSync ? "Disable scroll sync" : "Enable scroll sync"}
+          >
+            {scrollSync ? "⇅ Sync" : "⇅ Sync"}
+          </button>
+        )}
         {lineCount > 0 && (
           <span
             className="text-[9px] uppercase tracking-[0.1em]"

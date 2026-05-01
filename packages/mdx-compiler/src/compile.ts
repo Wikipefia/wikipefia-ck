@@ -43,6 +43,19 @@ export interface CompileOptions {
    * (caller decides what to do with them).
    */
   validateComponents?: boolean;
+  /**
+   * When true, MDX is compiled in development mode:
+   * - Output uses `jsxDEV` (from `react/jsx-dev-runtime`).
+   * - Each generated JSX call carries inline source-position info
+   *   (`fileName`, `lineNumber`, `columnNumber`) pointing back to
+   *   the original MDX source.
+   *
+   * Use this in interactive previews so the runtime can map errors
+   * back to a precise place in the user's MDX. Leave it off for
+   * production builds — the position metadata adds bytes and
+   * production should ship the optimized runtime.
+   */
+  development?: boolean;
 }
 
 /**
@@ -56,7 +69,11 @@ export async function compileMDX(
   source: string,
   options: CompileOptions = {}
 ): Promise<CompileResult> {
-  const { filePath = "<unknown>", validateComponents = true } = options;
+  const {
+    filePath = "<unknown>",
+    validateComponents = true,
+    development = false,
+  } = options;
 
   const tocStore: TocEntry[] = [];
   const diagnostics: ComponentDiagnostic[] = [];
@@ -74,17 +91,22 @@ export async function compileMDX(
   }
 
   try {
-    const vfile = await compile(source, {
-      outputFormat: "function-body",
-      development: false,
-      remarkPlugins,
-      rehypePlugins: [
-        rehypeSlug,
-        [rehypeAutolinkHeadings, { behavior: "wrap" }],
-        rehypeKatex,
-        rehypeExtractToc(tocStore),
-      ],
-    });
+    const vfile = await compile(
+      // Pass a vfile-shaped object so the compiler annotates JSX calls
+      // with this `path` as `fileName` (only matters when development=true).
+      { value: source, path: filePath },
+      {
+        outputFormat: "function-body",
+        development,
+        remarkPlugins,
+        rehypePlugins: [
+          rehypeSlug,
+          [rehypeAutolinkHeadings, { behavior: "wrap" }],
+          rehypeKatex,
+          rehypeExtractToc(tocStore),
+        ],
+      },
+    );
 
     return {
       compiled: String(vfile),

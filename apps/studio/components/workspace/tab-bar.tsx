@@ -45,12 +45,17 @@ export function TabBar({
                   e.currentTarget.style.backgroundColor = "transparent";
               }}
             >
-              {tab.modified && (
+              {tab.loading ? (
+                <span
+                  className="w-1.5 h-1.5 shrink-0 rounded-full animate-pulse"
+                  style={{ backgroundColor: C.accent }}
+                />
+              ) : tab.modified ? (
                 <span
                   className="w-1.5 h-1.5 shrink-0 rounded-full"
                   style={{ backgroundColor: C.accent }}
                 />
-              )}
+              ) : null}
               {tab.type === "metadata" && (
                 <span className="text-[10px]" style={{ color: C.textMuted }}>
                   &#x2699;

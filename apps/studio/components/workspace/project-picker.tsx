@@ -3,9 +3,10 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { motion } from "motion/react";
 import { C } from "@/lib/theme";
-import { MOCK_SUBJECTS } from "@/lib/mock-data";
+import type { ProjectRecord } from "@/lib/mock-data";
 
 interface ProjectPickerProps {
+  projects: ProjectRecord[];
   recentSlugs: string[];
   currentSlug: string | null;
   onSelect: (slug: string) => void;
@@ -13,6 +14,7 @@ interface ProjectPickerProps {
 }
 
 export function ProjectPicker({
+  projects,
   recentSlugs,
   currentSlug,
   onSelect,
@@ -24,28 +26,27 @@ export function ProjectPicker({
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
-    if (!q) return MOCK_SUBJECTS;
-    return MOCK_SUBJECTS.filter(
+    if (!q) return projects;
+    return projects.filter(
       (s) =>
-        s.name.en.toLowerCase().includes(q) ||
-        s.name.ru.toLowerCase().includes(q) ||
-        s.slug.includes(q),
+        s.name.toLowerCase().includes(q) ||
+        s.slug.includes(q) ||
+        s.githubRepo.toLowerCase().includes(q),
     );
-  }, [query]);
+  }, [query, projects]);
 
   const recentFiltered = useMemo(() => {
     if (query.trim()) return [];
     return recentSlugs
       .filter((slug) => slug !== currentSlug)
-      .map((slug) => MOCK_SUBJECTS.find((s) => s.slug === slug))
-      .filter(Boolean) as (typeof MOCK_SUBJECTS)[number][];
-  }, [recentSlugs, currentSlug, query]);
+      .map((slug) => projects.find((s) => s.slug === slug))
+      .filter(Boolean) as ProjectRecord[];
+  }, [recentSlugs, currentSlug, query, projects]);
 
-  // Total items for keyboard nav: recent + filtered
   const allItems = useMemo(() => {
-    const items: { slug: string; section: "recent" | "all" }[] = [];
-    for (const s of recentFiltered) items.push({ slug: s.slug, section: "recent" });
-    for (const s of filtered) items.push({ slug: s.slug, section: "all" });
+    const items: { slug: string }[] = [];
+    for (const s of recentFiltered) items.push({ slug: s.slug });
+    for (const s of filtered) items.push({ slug: s.slug });
     return items;
   }, [recentFiltered, filtered]);
 
@@ -84,56 +85,43 @@ export function ProjectPicker({
       className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh]"
       onClick={onClose}
     >
-      {/* Backdrop */}
       <div
         className="absolute inset-0"
         style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
       />
 
-      {/* Panel */}
       <motion.div
         initial={{ opacity: 0, y: -8, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.12 }}
         onClick={(e: React.MouseEvent) => e.stopPropagation()}
         className="relative w-full max-w-md border shadow-2xl"
-        style={{
-          backgroundColor: C.bgWhite,
-          borderColor: C.border,
-        }}
+        style={{ backgroundColor: C.bgWhite, borderColor: C.border }}
       >
-        {/* Search input */}
-        <div className="px-4 py-3 border-b" style={{ borderColor: C.borderLight }}>
+        <div
+          className="px-4 py-3 border-b"
+          style={{ borderColor: C.borderLight }}
+        >
           <input
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search projects\u2026"
             className="w-full text-[13px] bg-transparent outline-none"
-            style={{
-              fontFamily: "var(--font-mono)",
-              color: C.text,
-            }}
+            style={{ fontFamily: "var(--font-mono)", color: C.text }}
           />
         </div>
 
-        {/* Results */}
         <div className="max-h-[320px] overflow-y-auto py-1">
-          {/* Recent section */}
           {recentFiltered.length > 0 && (
             <>
-              <div
-                className="px-4 pt-2 pb-1 text-[8px] font-bold uppercase tracking-[0.2em]"
-                style={{ fontFamily: "var(--font-mono)", color: C.textMuted }}
-              >
-                Recent
-              </div>
+              <SectionLabel>Recent</SectionLabel>
               {recentFiltered.map((s) => {
                 const idx = itemIndex++;
                 return (
                   <ProjectRow
                     key={`recent-${s.slug}`}
-                    subject={s}
+                    project={s}
                     focused={idx === focusIdx}
                     isCurrent={false}
                     onSelect={() => onSelect(s.slug)}
@@ -144,13 +132,9 @@ export function ProjectPicker({
             </>
           )}
 
-          {/* All projects */}
-          <div
-            className="px-4 pt-2 pb-1 text-[8px] font-bold uppercase tracking-[0.2em]"
-            style={{ fontFamily: "var(--font-mono)", color: C.textMuted }}
-          >
+          <SectionLabel>
             {query.trim() ? "Results" : "All projects"}
-          </div>
+          </SectionLabel>
           {filtered.length === 0 ? (
             <div
               className="px-4 py-3 text-[11px]"
@@ -164,7 +148,7 @@ export function ProjectPicker({
               return (
                 <ProjectRow
                   key={`all-${s.slug}`}
-                  subject={s}
+                  project={s}
                   focused={idx === focusIdx}
                   isCurrent={s.slug === currentSlug}
                   onSelect={() => onSelect(s.slug)}
@@ -175,7 +159,6 @@ export function ProjectPicker({
           )}
         </div>
 
-        {/* Footer hint */}
         <div
           className="px-4 py-2 border-t flex items-center gap-3"
           style={{ borderColor: C.borderLight }}
@@ -192,14 +175,25 @@ export function ProjectPicker({
   );
 }
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="px-4 pt-2 pb-1 text-[8px] font-bold uppercase tracking-[0.2em]"
+      style={{ fontFamily: "var(--font-mono)", color: C.textMuted }}
+    >
+      {children}
+    </div>
+  );
+}
+
 function ProjectRow({
-  subject,
+  project,
   focused,
   isCurrent,
   onSelect,
   onHover,
 }: {
-  subject: (typeof MOCK_SUBJECTS)[number];
+  project: ProjectRecord;
   focused: boolean;
   isCurrent: boolean;
   onSelect: () => void;
@@ -211,9 +205,7 @@ function ProjectRow({
       onClick={onSelect}
       onMouseEnter={onHover}
       className="w-full flex items-center justify-between px-4 py-2 text-left cursor-pointer transition-colors"
-      style={{
-        backgroundColor: focused ? C.bg : "transparent",
-      }}
+      style={{ backgroundColor: focused ? C.bg : "transparent" }}
     >
       <div className="flex items-center gap-2.5 min-w-0">
         <span
@@ -228,13 +220,13 @@ function ProjectRow({
             className="text-[12px] font-medium truncate"
             style={{ fontFamily: "var(--font-mono)", color: C.text }}
           >
-            {subject.name.en}
+            {project.name}
           </div>
           <div
             className="text-[9px] truncate mt-0.5"
             style={{ fontFamily: "var(--font-mono)", color: C.textMuted }}
           >
-            {subject.description.en}
+            {project.githubRepo}
           </div>
         </div>
       </div>
@@ -251,12 +243,14 @@ function ProjectRow({
             Open
           </span>
         )}
-        <span
-          className="text-[9px]"
-          style={{ fontFamily: "var(--font-mono)", color: C.textMuted }}
-        >
-          {subject.metadata.credits}cr &middot; S{subject.metadata.semester}
-        </span>
+        {project.lastSynced && (
+          <span
+            className="text-[8px]"
+            style={{ fontFamily: "var(--font-mono)", color: C.textMuted }}
+          >
+            synced
+          </span>
+        )}
       </div>
     </button>
   );

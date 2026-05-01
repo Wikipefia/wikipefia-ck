@@ -5,6 +5,9 @@
   "scripts": {
     "dev": "npx convex dev"
   },
+  "exports": {
+    "./api": "./convex/_generated/api.js"
+  },
   "dependencies": {
     "convex": "^1.33.1"
   }
