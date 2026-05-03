@@ -26,6 +26,7 @@ export {
   useMessages,
   useSendMessage,
   useEditAndRegenerate,
+  useRegenerateMessage,
   useCancelGeneration,
   useSubmitToolResponse,
 } from "./hooks/use-messages";

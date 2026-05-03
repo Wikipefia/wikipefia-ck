@@ -33,13 +33,26 @@ import {
 } from "@wikipefia/mdx-renderer/components";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { createTypography } from "@wikipefia/mdx-renderer";
 import { C } from "@wikipefia/mdx-renderer/theme";
 import { COMPOSITE_WIDGET_NAMES } from "../../../tools";
+import { InlineMarkdown } from "./inline-markdown";
 
 const typography = createTypography();
+
+// Plugin arrays kept module-level so react-markdown's plugin identity check
+// doesn't re-instantiate on every widget render.
+//
+// remarkBreaks turns soft "\n" line breaks into <br/> — without it the model's
+// "✓ item one\n✓ item two\n✓ item three" inside Comparison/Tabs/StepByStep
+// content fields collapses into a single run-on paragraph. CommonMark
+// strictly requires "\n\n" for a new paragraph, but models routinely use
+// "\n" for visual line breaks.
+const BODY_REMARK_PLUGINS = [remarkGfm, remarkBreaks, remarkMath];
+const BODY_REHYPE_PLUGINS = [rehypeKatex];
 
 // ── Defensive helpers ───────────────────────────────────────
 // Models occasionally return malformed args (e.g. an object where an
@@ -98,14 +111,15 @@ function asObject(x: any): Record<string, any> {
 function MarkdownBody({ text }: { text: string }) {
   return (
     <ReactMarkdown
-      remarkPlugins={[remarkGfm, remarkMath]}
-      rehypePlugins={[rehypeKatex]}
+      remarkPlugins={BODY_REMARK_PLUGINS}
+      rehypePlugins={BODY_REHYPE_PLUGINS}
       components={typography}
     >
       {text}
     </ReactMarkdown>
   );
 }
+
 
 interface RenderInput {
   toolName: string;
@@ -507,6 +521,10 @@ function expandComposite(toolName: string, rawArgs: any): ReactNode {
 /**
  * Render a simple (non-composite) widget by mapping toolName → componentMap.
  * Children are markdown text passed via the `content` arg.
+ *
+ * DataTable gets special treatment: we inject an `renderCell` callback so
+ * each cell (and column header) goes through inline markdown — which means
+ * `$...$` LaTeX, **bold**, *italic*, links etc. all work inside cells.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function renderSimple(toolName: string, rawArgs: any): ReactNode {
@@ -514,6 +532,18 @@ function renderSimple(toolName: string, rawArgs: any): ReactNode {
   if (!Component) return null;
   const args = asObject(rawArgs);
   const { content, ...props } = args;
+
+  if (toolName === "DataTable") {
+    return (
+      <Component
+        {...props}
+        renderCell={(text: string) =>
+          text ? <InlineMarkdown text={text} /> : null
+        }
+      />
+    );
+  }
+
   if (typeof content === "string" && content.length > 0) {
     return (
       <Component {...props}>

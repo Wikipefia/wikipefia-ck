@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { C } from "@wikipefia/mdx-renderer/theme";
 import { useSubmitToolResponse } from "../../hooks/use-messages";
+import { InlineMarkdown } from "./inline-markdown";
 
 export interface QuizQuestion {
   text: string;
@@ -13,6 +14,12 @@ export interface QuizQuestion {
 export interface InteractiveQuizProps {
   messageId: string;
   toolCallId: string;
+  /**
+   * The AI SDK approvalId attached to the paused tool call. Required to
+   * resolve the approval correctly — passing null/undefined leads to the
+   * answers being silently auto-denied by the AI SDK.
+   */
+  approvalId?: string | null;
   questions: QuizQuestion[];
   /** When true, the user has already answered (replay) — display as read-only result. */
   answered?: { answers: string[] } | null;
@@ -26,6 +33,7 @@ export interface InteractiveQuizProps {
 export function InteractiveQuiz({
   messageId,
   toolCallId,
+  approvalId,
   questions,
   answered,
 }: InteractiveQuizProps) {
@@ -41,31 +49,79 @@ export function InteractiveQuiz({
     setSubmitting(true);
     try {
       const answers = questions.map((_, i) => picks[i]);
-      await submit(messageId, toolCallId, { answers });
+      await submit(messageId, toolCallId, { answers }, approvalId);
       setSubmitted(true);
     } finally {
       setSubmitting(false);
     }
-  }, [allAnswered, submitting, questions, picks, submit, messageId, toolCallId]);
+  }, [
+    allAnswered,
+    submitting,
+    questions,
+    picks,
+    submit,
+    messageId,
+    toolCallId,
+    approvalId,
+  ]);
 
   const isReadOnly = submitted || !!answered;
   const currentAnswers = answered?.answers ?? questions.map((_, i) => picks[i]);
 
+  // Visual emphasis when the user still has to answer:
+  //   - heavier accent border around the entire card
+  //   - "Awaiting your answer" header chip with a pulsing dot
+  //   - subtle outer glow so it stands out in the message stream
+  const awaitingAnswer = !isReadOnly;
+
   return (
     <div
       className="border-2 my-4"
-      style={{ borderColor: C.border, backgroundColor: C.bgWhite }}
+      style={{
+        borderColor: awaitingAnswer ? C.accent : C.border,
+        backgroundColor: C.bgWhite,
+        boxShadow: awaitingAnswer ? `0 0 0 4px ${C.accent}14` : undefined,
+        transition: "border-color 0.2s, box-shadow 0.2s",
+      }}
     >
       <div
-        className="px-4 py-2.5 border-b-2"
-        style={{ borderColor: C.border, backgroundColor: C.headerBg }}
+        className="px-4 py-2.5 border-b-2 flex items-center justify-between gap-3"
+        style={{
+          borderColor: awaitingAnswer ? C.accent : C.border,
+          backgroundColor: awaitingAnswer ? C.accent : C.headerBg,
+        }}
       >
         <span
-          className="text-[10px] font-bold uppercase tracking-[0.15em]"
-          style={{ fontFamily: "var(--font-mono)", color: C.headerText }}
+          className="text-[10px] font-bold uppercase tracking-[0.15em] flex items-center gap-2"
+          style={{
+            fontFamily: "var(--font-mono)",
+            color: awaitingAnswer ? "#fff" : C.headerText,
+          }}
         >
           ? QUIZ
         </span>
+        {awaitingAnswer ? (
+          <span
+            className="text-[10px] font-bold uppercase tracking-[0.15em] flex items-center gap-1.5"
+            style={{ fontFamily: "var(--font-mono)", color: "#fff" }}
+          >
+            <span className="relative flex h-2 w-2">
+              <span
+                className="absolute inline-flex h-full w-full rounded-full opacity-75"
+                style={{
+                  backgroundColor: "#fff",
+                  animation: "wpf-quiz-pulse 1.6s cubic-bezier(0,0,0.2,1) infinite",
+                }}
+              />
+              <span
+                className="relative inline-flex rounded-full h-2 w-2"
+                style={{ backgroundColor: "#fff" }}
+              />
+            </span>
+            Awaiting your answer
+            <style>{`@keyframes wpf-quiz-pulse { 0%, 100% { transform: scale(1); opacity: 0.75; } 50% { transform: scale(2.6); opacity: 0; } }`}</style>
+          </span>
+        ) : null}
       </div>
       <div className="px-4 py-4 flex flex-col gap-5">
         {questions.map((q, qi) => (
@@ -85,7 +141,7 @@ export function InteractiveQuiz({
               >
                 Q{qi + 1}
               </span>
-              {q.text}
+              <InlineMarkdown text={q.text} />
             </div>
             <div className="flex flex-col gap-1.5">
               {q.options.map((opt, oi) => {
@@ -146,13 +202,15 @@ export function InteractiveQuiz({
                           ? "●"
                           : "○"}
                     </span>
-                    <span className="text-[14px]">{opt.value}</span>
+                    <span className="text-[14px]">
+                      <InlineMarkdown text={opt.value} />
+                    </span>
                     {showResult && opt.explanation ? (
                       <div
                         className="text-[12px] mt-1.5"
                         style={{ color: C.textMuted, fontFamily: "var(--font-serif)" }}
                       >
-                        {opt.explanation}
+                        <InlineMarkdown text={opt.explanation} />
                       </div>
                     ) : null}
                   </button>
@@ -162,20 +220,30 @@ export function InteractiveQuiz({
           </motion.div>
         ))}
         {!isReadOnly ? (
-          <div className="flex justify-end mt-2">
+          <div className="flex items-center justify-between gap-3 mt-2">
+            <span
+              className="text-[10px] uppercase tracking-[0.15em]"
+              style={{
+                fontFamily: "var(--font-mono)",
+                color: allAnswered ? C.accent : C.textMuted,
+              }}
+            >
+              {Object.keys(picks).length}/{questions.length} answered
+            </span>
             <button
               type="button"
               onClick={handleSubmit}
               disabled={!allAnswered || submitting}
-              className="border h-[34px] px-4 text-[11px] font-bold uppercase tracking-[0.1em] disabled:opacity-40"
+              className="border-2 h-[36px] px-5 text-[11px] font-bold uppercase tracking-[0.1em] transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               style={{
                 fontFamily: "var(--font-mono)",
-                borderColor: C.border,
-                backgroundColor: allAnswered ? C.headerBg : C.bgWhite,
-                color: allAnswered ? C.headerText : C.textMuted,
+                borderColor: allAnswered ? C.accent : C.border,
+                backgroundColor: allAnswered ? C.accent : C.bgWhite,
+                color: allAnswered ? "#fff" : C.textMuted,
+                boxShadow: allAnswered ? `0 2px 0 0 ${C.accent}40` : undefined,
               }}
             >
-              {submitting ? "Submitting…" : "Submit answers"}
+              {submitting ? "Submitting…" : "Submit answers →"}
             </button>
           </div>
         ) : null}

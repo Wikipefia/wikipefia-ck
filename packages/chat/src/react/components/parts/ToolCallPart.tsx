@@ -43,12 +43,11 @@ export function ToolCallPart({
         options: { value: string; correct: boolean; explanation?: string }[];
       }[];
     };
-    const answers =
-      resolvedResult &&
-      typeof resolvedResult === "object" &&
-      "answers" in (resolvedResult as Record<string, unknown>)
-        ? ((resolvedResult as { answers: string[] }).answers ?? null)
-        : null;
+    // The user's submitted answers can land in either:
+    //   - resolvedResult.answers (when stored as a tool-result), or
+    //   - a tool-result with a value-typed JSON output (AI SDK normalizes
+    //     execute() returns into { type: "json", value: ... } shape).
+    const answers = extractAnswers(resolvedResult);
     return (
       <Suspense
         fallback={<WidgetSkeleton toolName="Quiz" partialArgsKeyCount={1} />}
@@ -61,6 +60,7 @@ export function ToolCallPart({
           <InteractiveQuiz
             messageId={messageId}
             toolCallId={part.toolCallId}
+            approvalId={part.approvalId ?? null}
             questions={args.questions ?? []}
             answered={answers ? { answers } : null}
           />
@@ -90,4 +90,28 @@ export function ToolCallPart({
       </motion.div>
     </Suspense>
   );
+}
+
+/**
+ * Pull `answers: string[]` out of whatever shape the AI SDK / @convex-dev/agent
+ * emitted as the tool result. Handles three observed shapes:
+ *   1. { answers: [...] }                             — direct
+ *   2. { type: "json", value: { answers: [...] } }    — AI SDK normalization
+ *   3. { value: { answers: [...] } }                  — older agent version
+ */
+function extractAnswers(result: unknown): string[] | null {
+  if (!result || typeof result !== "object") return null;
+  const r = result as Record<string, unknown>;
+  const direct = r.answers;
+  if (Array.isArray(direct) && direct.every((a) => typeof a === "string")) {
+    return direct as string[];
+  }
+  const inner = (r.value ?? r.output) as { answers?: unknown } | undefined;
+  if (inner && typeof inner === "object") {
+    const a = (inner as { answers?: unknown }).answers;
+    if (Array.isArray(a) && a.every((x) => typeof x === "string")) {
+      return a as string[];
+    }
+  }
+  return null;
 }

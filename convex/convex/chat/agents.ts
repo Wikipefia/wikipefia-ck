@@ -49,33 +49,77 @@ const quizTool = createTool({
 });
 
 /**
- * Lookup tool: returns full docs for a widget AND unlocks it for subsequent
- * agent steps via prepareStep + activeTools.
+ * Lookup tool: returns full schema/guidance/examples for one widget AND
+ * unlocks it for subsequent agent steps. The agent action's `prepareStep`
+ * re-reads `unlockedWidgets` from the thread before each LLM call, so the
+ * widget tool becomes callable in the next step within the same streamText.
+ *
+ * Robustness:
+ *   - Case-insensitive name match (handles e.g. "comparison" → "Comparison").
+ *   - Strips whitespace, surrounding quotes, and HTML-tag-like syntax
+ *     ("<Tabs>" → "Tabs") that some smaller models emit.
+ *   - On unknown name, returns a structured error WITH the full valid list,
+ *     so the model can self-correct on the next step.
  */
+const VALID_WIDGET_NAMES = Object.keys(WIDGET_DOCS);
+const WIDGET_NAME_BY_LOWER = Object.fromEntries(
+  VALID_WIDGET_NAMES.map((n) => [n.toLowerCase(), n]),
+);
+
+function normalizeWidgetName(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const trimmed = raw
+    .trim()
+    .replace(/^[<\"'`]+|[>\"'`]+$/g, "")
+    .trim();
+  if (trimmed.length === 0) return null;
+  // Exact match first (preserves case if model got it right).
+  if (WIDGET_DOCS[trimmed]) return trimmed;
+  // Case-insensitive fallback.
+  const canonical = WIDGET_NAME_BY_LOWER[trimmed.toLowerCase()];
+  return canonical ?? null;
+}
+
 const lookupWidgetDocs = createTool({
   description:
-    "Fetch detailed schema, guidance, and usage examples for a widget by name. Call this BEFORE using a widget that's not in the core tier.",
+    "Required pre-step before using ANY widget. Returns the widget's full input schema, guidance, and a copy-pastable usage example. After calling this, the widget tool of that name becomes available to call on your next step. Pass the widget name EXACTLY as listed in the system prompt.",
   inputSchema: z.object({
-    widgetName: z.string().describe("Exact widget name, e.g. 'Comparison'."),
+    widgetName: z
+      .string()
+      .describe(
+        "Exact widget name, e.g. 'Comparison', 'Quiz', 'Graph'. " +
+          "Case-sensitive but the tool tolerates case mistakes.",
+      ),
   }),
   execute: async (ctx, { widgetName }) => {
-    const docs = WIDGET_DOCS[widgetName];
-    if (!docs) {
+    const canonical = normalizeWidgetName(widgetName);
+    if (!canonical) {
       return {
-        error: `Unknown widget: ${widgetName}. Available: ${Object.keys(WIDGET_DOCS).join(", ")}`,
+        ok: false,
+        error: `Unknown widget "${widgetName}". Valid names: ${VALID_WIDGET_NAMES.join(", ")}.`,
+        validWidgetNames: VALID_WIDGET_NAMES,
       };
     }
+    const docs = WIDGET_DOCS[canonical];
     if (ctx.threadId) {
-      await ctx.runMutation(internal.chat.threads.unlockWidget, {
-        threadId: ctx.threadId,
-        widgetName,
-      });
+      try {
+        await ctx.runMutation(internal.chat.threads.unlockWidget, {
+          threadId: ctx.threadId,
+          widgetName: canonical,
+        });
+      } catch (err) {
+        // Non-fatal — the agent can still emit the widget call; if
+        // activeTools was misconfigured the next step will surface it.
+        console.warn("unlockWidget failed", err);
+      }
     }
     return {
-      widgetName,
+      ok: true,
+      widgetName: canonical,
       description: docs.description,
       guidance: docs.guidance,
       examples: docs.examples,
+      next: `On your NEXT step, call the tool named "${canonical}" with args matching the example above.`,
     };
   },
 });

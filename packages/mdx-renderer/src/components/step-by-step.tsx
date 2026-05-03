@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, Children, type ReactNode } from "react";
-import { useLabels } from "../labels";
 import { C } from "../theme";
 
 type AnyElement = { props: Record<string, any> };
@@ -16,12 +15,30 @@ export function Step({ children }: StepProps) {
 }
 
 interface StepByStepProps {
+  /** Optional title — currently NOT rendered (header was removed by request). */
   title?: string;
   children: ReactNode;
 }
 
-export function StepByStep({ title, children }: StepByStepProps) {
-  const t = useLabels();
+/**
+ * Progressive-reveal step container.
+ *
+ * Behavior:
+ *   - Revealed steps render fully visible.
+ *   - One "ghost" preview is rendered immediately after the last revealed
+ *     step. The preview renders the full content of the next step (so the
+ *     widget reserves its eventual height) but at low opacity, making it
+ *     hint-readable rather than legible. The whole preview row is a
+ *     clickable target — clicking it reveals the step and renders a new
+ *     ghost preview for the step after.
+ *   - Steps beyond `revealed + 1` are not rendered at all (the widget
+ *     grows incrementally as the reader engages).
+ *
+ * The header (title, "n/total") and footer (BACK / NEXT / dot-tracker)
+ * were removed: they were redundant once the ghost-preview affordance
+ * makes "click to continue" obvious.
+ */
+export function StepByStep({ children }: StepByStepProps) {
   const steps: { title: string; content: ReactNode }[] = [];
 
   Children.forEach(children, (child) => {
@@ -37,38 +54,72 @@ export function StepByStep({ title, children }: StepByStepProps) {
 
   if (total === 0) return null;
 
+  const reveal = () => setRevealed((r) => Math.min(total, r + 1));
+
+  // Render only revealed steps + one ghost preview for the immediate next.
+  const visibleCount = Math.min(revealed + 1, total);
+
+  // Opacity for the unrevealed ghost preview. Picked to roughly match the
+  // brightness of the previous "all-future-steps-dimmed" rendering, so the
+  // visual rhythm of the widget didn't flip when this design changed.
+  const PREVIEW_OPACITY = 0.22;
+  const PREVIEW_HOVER_OPACITY = 0.4;
+
   return (
     <div className="mb-6 border-2" style={{ borderColor: C.border }}>
-      <div
-        className="flex items-center justify-between px-4 py-2.5 border-b-2"
-        style={{ borderColor: C.border, backgroundColor: C.headerBg }}
-      >
-        <span
-          className="text-[10px] font-bold uppercase tracking-[0.15em]"
-          style={{ fontFamily: "var(--font-mono)", color: C.headerText }}
-        >
-          ■ {title || t.stepByStep}
-        </span>
-        <span
-          className="text-[10px] font-bold tracking-[0.1em]"
-          style={{ fontFamily: "var(--font-mono)", color: C.textMuted }}
-        >
-          {revealed}/{total}
-        </span>
-      </div>
-
       <div className="px-4 py-3" style={{ backgroundColor: C.bgWhite }}>
-        {steps.map((step, i) => {
-          const isVisible = i < revealed;
+        {steps.slice(0, visibleCount).map((step, i) => {
+          const isRevealed = i < revealed;
+          // Exactly one preview row at any given time: the immediately-next.
+          const isPreview = !isRevealed;
+          // The most-recently-revealed step gets a slightly more prominent
+          // step-number badge so the eye lands on "where I am right now"
+          // without needing the textual CURRENT label.
           const isCurrent = i === revealed - 1;
+
+          const handleClick = isPreview ? reveal : undefined;
+          const handleKey = isPreview
+            ? (e: React.KeyboardEvent<HTMLDivElement>) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  reveal();
+                }
+              }
+            : undefined;
 
           return (
             <div
               key={i}
-              className="flex gap-3"
+              role={isPreview ? "button" : undefined}
+              tabIndex={isPreview ? 0 : undefined}
+              aria-label={
+                isPreview ? `Reveal step ${i + 1}: ${step.title}` : undefined
+              }
+              onClick={handleClick}
+              onKeyDown={handleKey}
+              onMouseEnter={
+                isPreview
+                  ? (e) => {
+                      e.currentTarget.style.opacity = String(
+                        PREVIEW_HOVER_OPACITY,
+                      );
+                    }
+                  : undefined
+              }
+              onMouseLeave={
+                isPreview
+                  ? (e) => {
+                      e.currentTarget.style.opacity = String(PREVIEW_OPACITY);
+                    }
+                  : undefined
+              }
+              className={[
+                "flex gap-3 outline-none",
+                isPreview ? "cursor-pointer select-none" : "",
+              ].join(" ")}
               style={{
-                opacity: isVisible ? 1 : 0.25,
-                transition: "opacity 0.3s ease",
+                opacity: isRevealed ? 1 : PREVIEW_OPACITY,
+                transition: "opacity 0.25s ease",
               }}
             >
               <div className="flex flex-col items-center shrink-0">
@@ -78,12 +129,12 @@ export function StepByStep({ title, children }: StepByStepProps) {
                     fontFamily: "var(--font-mono)",
                     backgroundColor: isCurrent
                       ? C.headerBg
-                      : isVisible
+                      : isRevealed
                         ? C.borderLight
                         : C.bg,
                     color: isCurrent
                       ? C.headerText
-                      : isVisible
+                      : isRevealed
                         ? C.text
                         : C.borderLight,
                   }}
@@ -94,7 +145,7 @@ export function StepByStep({ title, children }: StepByStepProps) {
                   <div
                     className="w-px flex-1 min-h-3"
                     style={{
-                      backgroundColor: isVisible ? C.borderLight : C.bg,
+                      backgroundColor: isRevealed ? C.borderLight : C.bg,
                     }}
                   />
                 )}
@@ -102,32 +153,24 @@ export function StepByStep({ title, children }: StepByStepProps) {
 
               <div className="flex-1 pb-4 last:pb-0">
                 <p
-                  className="text-[11px] font-bold uppercase tracking-[0.08em] mb-1.5 flex items-center gap-2"
+                  className="text-[11px] font-bold uppercase tracking-[0.08em] mb-1.5"
                   style={{
                     fontFamily: "var(--font-mono)",
-                    color: isVisible ? C.text : C.borderLight,
+                    color: isRevealed ? C.text : C.borderLight,
                   }}
                 >
                   {step.title}
-                  {isCurrent && (
-                    <span
-                      className="text-[8px] px-1.5 py-0.5 uppercase tracking-[0.1em]"
-                      style={{
-                        backgroundColor: C.accent,
-                        color: "#fff",
-                        fontFamily: "var(--font-mono)",
-                      }}
-                    >
-                      {t.current}
-                    </span>
-                  )}
                 </p>
-                {isVisible && step.content && (
+                {step.content && (
                   <div
                     className="text-[13px] leading-[1.75]"
+                    // pointer-events-none so hover/click only registers on
+                    // the parent row (avoids issues with links/buttons that
+                    // happen to live inside the preview content).
                     style={{
                       fontFamily: "var(--font-serif)",
                       color: C.textMuted,
+                      pointerEvents: isPreview ? "none" : undefined,
                     }}
                   >
                     {step.content}
@@ -137,64 +180,6 @@ export function StepByStep({ title, children }: StepByStepProps) {
             </div>
           );
         })}
-      </div>
-
-      <div
-        className="flex items-center justify-between px-4 py-2.5 border-t-2"
-        style={{ borderColor: C.borderLight, backgroundColor: C.bg }}
-      >
-        <button
-          onClick={() => setRevealed((r) => Math.max(1, r - 1))}
-          disabled={revealed <= 1}
-          className="px-3 py-1 text-[10px] font-bold uppercase tracking-[0.1em] border-2 cursor-pointer transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
-          style={{
-            fontFamily: "var(--font-mono)",
-            borderColor: C.border,
-            color: C.text,
-          }}
-        >
-          {t.back}
-        </button>
-
-        <div className="flex items-center gap-1">
-          {steps.map((_, i) => (
-            <span
-              key={i}
-              className="block w-1.5 h-1.5"
-              style={{
-                backgroundColor: i < revealed ? C.text : C.borderLight,
-                transition: "background-color 0.3s ease",
-              }}
-            />
-          ))}
-        </div>
-
-        {revealed < total ? (
-          <button
-            onClick={() => setRevealed((r) => Math.min(total, r + 1))}
-            className="px-3 py-1 text-[10px] font-bold uppercase tracking-[0.1em] border-2 cursor-pointer transition-colors"
-            style={{
-              fontFamily: "var(--font-mono)",
-              borderColor: C.border,
-              backgroundColor: C.headerBg,
-              color: C.headerText,
-            }}
-          >
-            {t.nextStep}
-          </button>
-        ) : (
-          <button
-            onClick={() => setRevealed(1)}
-            className="px-3 py-1 text-[10px] font-bold uppercase tracking-[0.1em] border-2 cursor-pointer transition-colors"
-            style={{
-              fontFamily: "var(--font-mono)",
-              borderColor: C.border,
-              color: C.text,
-            }}
-          >
-            {t.resetStep}
-          </button>
-        )}
       </div>
     </div>
   );

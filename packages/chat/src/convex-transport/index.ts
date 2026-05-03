@@ -58,6 +58,7 @@ export function useConvexChatTransport({
 
   const mSendMessage = useMutation(api.chat.messages.sendMessage);
   const mEditAndRegenerate = useMutation(api.chat.messages.editAndRegenerate);
+  const mRegenerateMessage = useMutation(api.chat.messages.regenerateMessage);
   const mSubmitToolResponse = useMutation(api.chat.messages.submitToolResponse);
 
   const mGenerateUploadUrl = useMutation(api.chat.files.generateUploadUrl);
@@ -157,9 +158,24 @@ export function useConvexChatTransport({
         await mSetModel({ userId, threadId, modelId });
       },
 
-      async editAndRegenerate(messageId, newContent) {
+      async editAndRegenerate(messageId, newContent, options) {
         if (!userId) throw new Error("Session not ready");
-        await mEditAndRegenerate({ userId, messageId, newContent });
+        await mEditAndRegenerate({
+          userId,
+          messageId,
+          newContent,
+          attachments: options?.attachments ?? [],
+          ...(options?.modelId ? { modelId: options.modelId } : {}),
+        });
+      },
+
+      async regenerateMessage(messageId, options) {
+        if (!userId) throw new Error("Session not ready");
+        await mRegenerateMessage({
+          userId,
+          messageId,
+          ...(options?.modelId ? { modelId: options.modelId } : {}),
+        });
       },
 
       async cancelGeneration(threadId) {
@@ -167,13 +183,14 @@ export function useConvexChatTransport({
         await mCancelGeneration({ userId, threadId });
       },
 
-      async submitToolResponse(messageId, toolCallId, response) {
+      async submitToolResponse(messageId, toolCallId, response, approvalId) {
         if (!userId) throw new Error("Session not ready");
         await mSubmitToolResponse({
           userId,
           messageId,
           toolCallId,
           response,
+          ...(approvalId ? { approvalId } : {}),
         });
       },
 
@@ -217,6 +234,7 @@ export function useConvexChatTransport({
       mCancelGeneration,
       mSendMessage,
       mEditAndRegenerate,
+      mRegenerateMessage,
       mSubmitToolResponse,
       mGenerateUploadUrl,
       aExportThread,
@@ -272,6 +290,13 @@ function convertUIMessage(m: any): ChatMessage {
             : ("complete" as const);
         const args = p.input ?? p.args ?? {};
         const callId = p.toolCallId ?? p.id ?? `${m._id}-${parts.length}`;
+        // AI SDK's UIMessages helper attaches `.approval = { id }` once the
+        // tool-call has paused for approval. The id is the distinct
+        // approvalId we need to round-trip when the user submits the
+        // response — DON'T confuse it with toolCallId.
+        const approvalId =
+          (typeof p.approval?.id === "string" ? p.approval.id : undefined) ??
+          (typeof p.approvalId === "string" ? p.approvalId : undefined);
         parts.push({
           type: "tool-call",
           toolCallId: callId,
@@ -279,6 +304,7 @@ function convertUIMessage(m: any): ChatMessage {
           args,
           state,
           needsApproval: !!p.needsApproval,
+          ...(approvalId ? { approvalId } : {}),
         });
         if (
           (p.state === "output-available" || p.output !== undefined) &&

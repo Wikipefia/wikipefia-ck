@@ -24,8 +24,20 @@ export function useSendMessage(threadId: string | null) {
 export function useEditAndRegenerate() {
   const transport = useChatTransport();
   return useCallback(
-    (messageId: string, newContent: string) =>
-      transport.editAndRegenerate(messageId, newContent),
+    (
+      messageId: string,
+      newContent: string,
+      options?: { attachments?: AttachmentRef[]; modelId?: string },
+    ) => transport.editAndRegenerate(messageId, newContent, options),
+    [transport],
+  );
+}
+
+export function useRegenerateMessage() {
+  const transport = useChatTransport();
+  return useCallback(
+    (messageId: string, options?: { modelId?: string }) =>
+      transport.regenerateMessage(messageId, options),
     [transport],
   );
 }
@@ -41,8 +53,13 @@ export function useCancelGeneration(threadId: string | null) {
 export function useSubmitToolResponse() {
   const transport = useChatTransport();
   return useCallback(
-    (messageId: string, toolCallId: string, response: unknown) =>
-      transport.submitToolResponse(messageId, toolCallId, response),
+    (
+      messageId: string,
+      toolCallId: string,
+      response: unknown,
+      approvalId?: string | null,
+    ) =>
+      transport.submitToolResponse(messageId, toolCallId, response, approvalId),
     [transport],
   );
 }

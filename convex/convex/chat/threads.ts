@@ -11,6 +11,7 @@ import {
   saveMessage,
   updateThreadMetadata,
 } from "@convex-dev/agent";
+import { SYSTEM_PROMPT_VERSION } from "@wikipefia/chat/tools";
 
 /**
  * Public queries / mutations for managing threads (CRUD + cancellation).
@@ -97,7 +98,8 @@ export const createThread = mutation({
       title,
     });
 
-    // App-side metadata
+    // App-side metadata. generationId starts at 1 so the kicked-off runAgent
+    // can identify itself (any later regenerate will bump to 2+).
     const now = Date.now();
     await ctx.db.insert("threadMeta", {
       threadId,
@@ -105,8 +107,9 @@ export const createThread = mutation({
       title,
       status: "generating",
       modelId,
-      systemPromptVersion: "v1",
+      systemPromptVersion: SYSTEM_PROMPT_VERSION,
       cancelRequested: false,
+      generationId: 1,
       unlockedWidgets: [],
       createdAt: now,
       updatedAt: now,
@@ -130,6 +133,7 @@ export const createThread = mutation({
     await ctx.scheduler.runAfter(0, internal.chat.agent_action.runAgent, {
       threadId,
       promptMessageId: messageId,
+      generationId: 1,
     });
     await ctx.scheduler.runAfter(0, internal.chat.agent_action.generateTitle, {
       threadId,
@@ -234,6 +238,28 @@ export const isCancelRequested = internalQuery({
       .withIndex("by_thread", (q) => q.eq("threadId", threadId))
       .first();
     return row?.cancelRequested ?? false;
+  },
+});
+
+/**
+ * Read the bare-minimum fields the runAgent poller needs to decide whether
+ * to abort: cancelRequested + generationId + deletedAt. Returns null when
+ * the thread is missing entirely (stops the agent from running into a
+ * deleted thread).
+ */
+export const getRunStateForPolling = internalQuery({
+  args: { threadId: v.string() },
+  handler: async (ctx, { threadId }) => {
+    const row = await ctx.db
+      .query("threadMeta")
+      .withIndex("by_thread", (q) => q.eq("threadId", threadId))
+      .first();
+    if (!row) return null;
+    return {
+      cancelRequested: row.cancelRequested ?? false,
+      generationId: row.generationId,
+      deletedAt: row.deletedAt,
+    };
   },
 });
 

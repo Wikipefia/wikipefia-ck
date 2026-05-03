@@ -42,13 +42,21 @@ export const WIDGET_DOCS: Record<string, WidgetDoc> = {
     description:
       "INTERACTIVE multiple-choice quiz. Generation pauses; user answers; you receive answers as a tool result and must explain.",
     guidance:
-      "Use whenever the user asks for a quiz, or when checking comprehension would help learning. Each question MUST have 2–4 options with EXACTLY ONE correct. Avoid joke options. Add `explanation` per option when the misconception is interesting.",
+      "Use whenever the user asks for a quiz, or when checking comprehension would help learning. Each question MUST have 2–4 options with EXACTLY ONE correct. Avoid joke options. Add `explanation` per option when the misconception is interesting. " +
+      "Question text, option values, AND explanations all support inline markdown + LaTeX — use $...$ for inline math (e.g. \"$\\\\frac{d}{dx}\\\\sin(x)$\"), **bold**, *italic*, etc. ALWAYS write math expressions inside $...$ rather than as plain ASCII (\"$P(X{=}2)$\" not \"P(X=2)\").",
     examples: `{ "questions": [
-  { "text": "What is the derivative of sin(x)?",
+  { "text": "Чему равно $\\\\frac{d}{dx}\\\\sin(x)$?",
     "options": [
-      { "value": "cos(x)", "correct": true, "explanation": "Direct application of standard derivatives." },
-      { "value": "-cos(x)", "correct": false, "explanation": "Sign error — that's the derivative of -sin(x)." },
-      { "value": "tan(x)", "correct": false }
+      { "value": "$\\\\cos(x)$", "correct": true, "explanation": "Прямое применение табличной производной." },
+      { "value": "$-\\\\cos(x)$", "correct": false, "explanation": "Ошибка в знаке — это производная $-\\\\sin(x)$." },
+      { "value": "$\\\\tan(x)$", "correct": false }
+    ]
+  },
+  { "text": "Для $X \\\\sim \\\\mathrm{Bin}(3, 0.1)$, чему равно $P(X{=}2)$?",
+    "options": [
+      { "value": "$0.1^2 \\\\cdot 0.9 = 0.009$", "correct": false, "explanation": "Забыт биномиальный коэффициент $\\\\binom{3}{2}=3$." },
+      { "value": "$3 \\\\cdot 0.1^2 \\\\cdot 0.9 = 0.027$", "correct": true, "explanation": "Формула Бернулли $\\\\binom{n}{k} p^k (1{-}p)^{n-k}$." },
+      { "value": "$0.1^3 = 0.001$", "correct": false, "explanation": "Это $P(X{=}3)$." }
     ]
   }
 ] }`,
@@ -57,8 +65,14 @@ export const WIDGET_DOCS: Record<string, WidgetDoc> = {
   DataTable: {
     description: "Structured tabular data with optional sorting.",
     guidance:
-      "Use for comparing 3+ rows of structured data. Columns is an array of header strings. Rows is an array of arrays of cell strings (must match columns length).",
-    examples: `{ "caption": "Big-O comparison", "columns": ["Algorithm", "Best", "Average", "Worst"], "rows": [["QuickSort","O(n log n)","O(n log n)","O(n²)"],["MergeSort","O(n log n)","O(n log n)","O(n log n)"]], "sortable": true }`,
+      "Use for comparing 3+ rows of structured data. Columns is an array of header strings. Rows is an array of arrays of cell strings (must match columns length). " +
+      "Cells AND column headers support inline markdown and LaTeX: write **bold**, `code`, [links](url), and inline math with $...$ (e.g. \"$P(X{=}k) = \\\\binom{n}{k}p^k$\"). Use $...$ rather than writing math as plain ASCII.",
+    examples: `{ "caption": "$P(X{=}k)$ for $n{=}3$, $p{=}0.1$", "columns": ["$k$", "Meaning", "$P(X{=}k)$"], "rows": [
+  ["0", "no defects", "$0.9^3 = 0.729$"],
+  ["1", "exactly one defect", "$3 \\\\cdot 0.1 \\\\cdot 0.9^2 = 0.243$"],
+  ["2", "exactly two defects", "$3 \\\\cdot 0.1^2 \\\\cdot 0.9 = 0.027$"],
+  ["3", "three defects", "$0.1^3 = 0.001$"]
+] }`,
   },
 
   Figure: {

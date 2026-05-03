@@ -4,15 +4,15 @@ import { v } from "convex/values";
 import { generateText } from "ai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { internalAction } from "../_generated/server";
-import { internal } from "../_generated/api";
+import { components, internal } from "../_generated/api";
 import { getAgentForModel } from "./agents";
-import { CORE_TIER_WIDGETS } from "@wikipefia/chat/tools";
 
 /**
  * The agent loop. Triggered by:
  *   - createThread (after first user message)
  *   - sendMessage (after each subsequent user message)
  *   - editAndRegenerate (after editing a user message)
+ *   - regenerateMessage (regenerate without editing)
  *   - submitToolResponse (after the user answers a Quiz)
  *
  * Streams generation deltas to the database via the agent component's
@@ -21,13 +21,37 @@ import { CORE_TIER_WIDGETS } from "@wikipefia/chat/tools";
  * Closing the tab does NOT abort this action — the action runs to
  * completion (or until cancelGeneration is requested) regardless of
  * client connection state. That's the whole point of running on Convex.
+ *
+ * ── Cancellation ─────────────────────────────────────────────
+ * Two mechanisms run concurrently while streaming:
+ *
+ *   1. `onStepFinish` checks the cancel flag between LLM steps. Catches
+ *      cancels at clean tool/step boundaries.
+ *   2. A 300ms `setInterval` poll calls `controller.abort()` on the
+ *      AbortSignal we hand to streamText, so the underlying provider
+ *      stream is interrupted MID-token. Without this, clicking Cancel
+ *      while the LLM is still spitting tokens does nothing visible.
+ *
+ * ── Superseded runs ──────────────────────────────────────────
+ * Each run is launched with a `generationId` matching the thread's
+ * current `generationId`. If a newer regenerate/send/etc. fires, it
+ * bumps the thread's generationId; this run sees the mismatch on its
+ * next poll and aborts itself. That stops two parallel runs from both
+ * appending steps to the same thread.
  */
 export const runAgent = internalAction({
   args: {
     threadId: v.string(),
     promptMessageId: v.string(),
+    /**
+     * The thread's `generationId` at the time this run was scheduled.
+     * If the thread's current generationId no longer matches, this run
+     * has been superseded and aborts. Optional for back-compat with any
+     * already-scheduled jobs from before this field existed.
+     */
+    generationId: v.optional(v.number()),
   },
-  handler: async (ctx, { threadId, promptMessageId }) => {
+  handler: async (ctx, { threadId, promptMessageId, generationId }) => {
     const meta = await ctx.runQuery(internal.chat.threads.getMeta, {
       threadId,
     });
@@ -43,47 +67,195 @@ export const runAgent = internalAction({
       });
       return;
     }
+    // If we were already superseded before we even started, bail without
+    // touching status — the newer run owns the thread now.
+    if (
+      generationId !== undefined &&
+      meta.generationId !== undefined &&
+      meta.generationId !== generationId
+    ) {
+      return;
+    }
 
     const agent = getAgentForModel(meta.modelId);
+    const abortController = new AbortController();
+
+    // Defensive cleanup: if a previous run was superseded by us and managed
+    // to finalize a partial assistant message between then and now, wipe it.
+    // We're guaranteed to be the current generation here (checked above), so
+    // any messages strictly after the prompt user msg are stragglers.
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const idCast = promptMessageId as any;
+      const promptFetch = (await ctx.runQuery(
+        components.agent.messages.getMessagesByIds,
+        { messageIds: [idCast] },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      )) as any[] | undefined;
+      const promptMsg = promptFetch?.[0] as
+        | {
+            threadId: string;
+            order: number;
+            stepOrder: number;
+            message?: { role?: string };
+          }
+        | undefined;
+      if (promptMsg && promptMsg.message?.role === "user") {
+        for (let i = 0; i < 8; i++) {
+          const result = (await ctx.runMutation(
+            components.agent.messages.deleteByOrder,
+            {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              threadId: promptMsg.threadId as any,
+              startOrder: promptMsg.order,
+              startStepOrder: promptMsg.stepOrder + 1,
+              endOrder: Number.MAX_SAFE_INTEGER,
+            },
+          )) as { isDone: boolean } | undefined;
+          if (result?.isDone ?? true) break;
+        }
+      }
+    } catch (err) {
+      // Non-fatal — worst case, a stale partial assistant remains visible.
+      console.warn("runAgent defensive cleanup failed", err);
+    }
+
+    // 300ms cancel poll. Fires controller.abort() the moment cancelRequested
+    // flips OR a newer generation supersedes us OR the thread is deleted.
+    let aborted = false;
+    const cancelPoll = setInterval(() => {
+      void (async () => {
+        try {
+          const state = await ctx.runQuery(
+            internal.chat.threads.getRunStateForPolling,
+            { threadId },
+          );
+          if (!state) {
+            aborted = true;
+            abortController.abort();
+            return;
+          }
+          if (state.deletedAt) {
+            aborted = true;
+            abortController.abort();
+            return;
+          }
+          if (state.cancelRequested) {
+            aborted = true;
+            abortController.abort();
+            return;
+          }
+          if (
+            generationId !== undefined &&
+            state.generationId !== undefined &&
+            state.generationId !== generationId
+          ) {
+            aborted = true;
+            abortController.abort();
+            return;
+          }
+        } catch {
+          // network blip — we'll catch the cancel on the next tick
+        }
+      })();
+    }, 300);
 
     try {
-      // Compute the active tools for THIS thread: core tier + previously
-      // unlocked widgets + the lookup tool. This bounds tool-schema serialization
-      // size (a major token-cost concern with 22+ widget tools).
-      const unlocked = await ctx.runQuery(
-        internal.chat.threads.getUnlockedWidgets,
-        { threadId },
+      // ── Dynamic activeTools per step ──────────────────────
+      // Architecture: the model sees ALL widgets in the system prompt, but
+      // only `lookupWidgetDocs` is callable upfront. Calling lookupWidgetDocs
+      // for a widget unlocks it (DB write); the NEXT step's `prepareStep`
+      // re-reads `unlockedWidgets` and adds the new widget to activeTools.
+      //
+      // Without prepareStep, AI SDK's experimental_activeTools is fixed for
+      // the entire streamText call — meaning the lookup tool would unlock
+      // widgets in DB but never make them callable within the same response.
+      // That manifested as "lookupWidgetDocs sometimes does nothing".
+      //
+      // We also keep an in-memory `unlockedSet` mirror so the unlock from a
+      // mid-stream tool execute is reflected immediately on the next step,
+      // even before the DB read on the polling tick (race-free).
+      const unlockedSet = new Set<string>(
+        (await ctx.runQuery(internal.chat.threads.getUnlockedWidgets, {
+          threadId,
+        })) as string[],
       );
-      const activeTools = [
-        ...CORE_TIER_WIDGETS,
-        ...unlocked.filter(
-          (w: string) =>
-            !CORE_TIER_WIDGETS.includes(w as (typeof CORE_TIER_WIDGETS)[number]),
-        ),
-        "lookupWidgetDocs",
-      ];
 
       const result = await agent.streamText(
         ctx,
         { threadId, userId: meta.userId },
         {
           promptMessageId,
-          // AI SDK v5/v6: prepareStep is the per-step hook we use to gate tools
-          experimental_activeTools: activeTools,
+          // Mid-stream abort: AI SDK passes this through to the provider's
+          // fetch, so cancellation works even mid-token.
+          abortSignal: abortController.signal,
+          // Per-step hook: AI SDK calls this BEFORE every LLM call. We
+          // recompute activeTools so freshly-unlocked widgets become
+          // available in the very next step.
+          //
+          // NOTE: AI SDK v6's PrepareStepResult uses `activeTools` (the
+          // non-experimental name). Using `experimental_activeTools` here
+          // would be silently ignored.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          prepareStep: async () => {
+            const fresh = (await ctx.runQuery(
+              internal.chat.threads.getUnlockedWidgets,
+              { threadId },
+            )) as string[];
+            for (const w of fresh) unlockedSet.add(w);
+            return {
+              activeTools: [
+                "lookupWidgetDocs",
+                ...Array.from(unlockedSet),
+              ],
+            };
+          },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onStepFinish: async () => {
-            const cancelled = await ctx.runQuery(
-              internal.chat.threads.isCancelRequested,
+            const state = await ctx.runQuery(
+              internal.chat.threads.getRunStateForPolling,
               { threadId },
             );
-            if (cancelled) {
+            if (!state) {
               throw new Error("__CANCELLED__");
+            }
+            if (state.cancelRequested) {
+              throw new Error("__CANCELLED__");
+            }
+            if (
+              generationId !== undefined &&
+              state.generationId !== undefined &&
+              state.generationId !== generationId
+            ) {
+              throw new Error("__SUPERSEDED__");
             }
           },
         },
         { saveStreamDeltas: { chunking: "word", throttleMs: 250 } },
       );
       await result.consumeStream();
+
+      // Aborted via the polling loop — treat the same as a step-level cancel.
+      if (aborted) {
+        const state = await ctx.runQuery(
+          internal.chat.threads.getRunStateForPolling,
+          { threadId },
+        );
+        // Only flip to idle if we're still the current generation. Otherwise
+        // a newer run owns the status and we leave it alone.
+        if (
+          state &&
+          (generationId === undefined ||
+            state.generationId === undefined ||
+            state.generationId === generationId)
+        ) {
+          await ctx.runMutation(internal.chat.threads.setStatus, {
+            threadId,
+            status: "idle",
+          });
+        }
+        return;
+      }
 
       // Determine final status: pending approval → awaiting_user, else idle.
       const hasPendingApproval = await checkPendingApproval(ctx, threadId);
@@ -96,11 +268,33 @@ export const runAgent = internalAction({
       // action scheduled from createThread. We don't need to do anything here.
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      if (message === "__CANCELLED__") {
-        await ctx.runMutation(internal.chat.threads.setStatus, {
-          threadId,
-          status: "idle",
-        });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const isAbort =
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (err as any)?.name === "AbortError" ||
+        message.includes("aborted") ||
+        message === "__CANCELLED__" ||
+        message === "__SUPERSEDED__";
+      if (isAbort) {
+        // For supersede, leave status to the newer run. For a normal cancel,
+        // flip to idle.
+        if (message !== "__SUPERSEDED__") {
+          const state = await ctx.runQuery(
+            internal.chat.threads.getRunStateForPolling,
+            { threadId },
+          );
+          if (
+            state &&
+            (generationId === undefined ||
+              state.generationId === undefined ||
+              state.generationId === generationId)
+          ) {
+            await ctx.runMutation(internal.chat.threads.setStatus, {
+              threadId,
+              status: "idle",
+            });
+          }
+        }
         return;
       }
       console.error("runAgent error", err);
@@ -108,6 +302,8 @@ export const runAgent = internalAction({
         threadId,
         status: "error",
       });
+    } finally {
+      clearInterval(cancelPoll);
     }
   },
 });
@@ -120,12 +316,15 @@ export const runAgent = internalAction({
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function checkPendingApproval(ctx: any, threadId: string): Promise<boolean> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { components } = await import("../_generated/api") as any;
-    const result = await ctx.runQuery(components.agent.messages.listMessages, {
-      threadId,
-      paginationOpts: { numItems: 5, cursor: null },
-    });
+    const result = await ctx.runQuery(
+      components.agent.messages.listMessagesByThreadId,
+      {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        threadId: threadId as any,
+        order: "desc",
+        paginationOpts: { numItems: 5, cursor: null },
+      },
+    );
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const items = (result?.page ?? []) as any[];
     for (const m of items) {

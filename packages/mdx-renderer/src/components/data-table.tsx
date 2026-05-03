@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { C } from "../theme";
 
 function parseNumeric(s: string): number | null {
@@ -21,6 +21,13 @@ interface DataTableProps {
   columns: string[];
   rows: string[][];
   sortable?: boolean;
+  /**
+   * Optional renderer for the cell text (and column headers). Hosts that
+   * support markdown / LaTeX inside cells inject this — without it the cell
+   * value is rendered as plain text. Sort comparisons still operate on the
+   * raw string regardless of how it's rendered.
+   */
+  renderCell?: (text: string) => ReactNode;
 }
 
 export function DataTable({
@@ -28,6 +35,7 @@ export function DataTable({
   columns = [],
   rows = [],
   sortable = false,
+  renderCell,
 }: DataTableProps) {
   const [sortCol, setSortCol] = useState<number | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -96,7 +104,7 @@ export function DataTable({
                   }}
                 >
                   <span className="flex items-center gap-1.5">
-                    {col}
+                    {renderCell ? renderCell(col) : col}
                     {sortable && (
                       <span
                         className="text-[8px]"
@@ -126,40 +134,44 @@ export function DataTable({
                     ri > 0 ? `1px solid ${C.borderLight}` : undefined,
                 }}
               >
-                {columns.map((_, ci) => (
-                  <td
-                    key={ci}
-                    className="px-4 py-2"
-                    style={{
-                      fontFamily: "var(--font-serif)",
-                      color: C.text,
-                      borderRight:
-                        ci < columns.length - 1
-                          ? `1px solid ${C.borderLight}`
-                          : undefined,
-                    }}
-                  >
-                    {row[ci] ?? ""}
-                  </td>
-                ))}
+                {columns.map((_, ci) => {
+                  const cell = row[ci] ?? "";
+                  return (
+                    <td
+                      key={ci}
+                      className="px-4 py-2"
+                      style={{
+                        fontFamily: "var(--font-serif)",
+                        color: C.text,
+                        borderRight:
+                          ci < columns.length - 1
+                            ? `1px solid ${C.borderLight}`
+                            : undefined,
+                      }}
+                    >
+                      {renderCell ? renderCell(cell) : cell}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      <div
-        className="px-4 py-1.5 border-t text-[9px] uppercase tracking-[0.15em]"
-        style={{
-          fontFamily: "var(--font-mono)",
-          color: C.textMuted,
-          borderColor: C.borderLight,
-          backgroundColor: C.bg,
-        }}
-      >
-        {displayRows.length} row{displayRows.length !== 1 ? "s" : ""}
-        {sortable && " · click headers to sort"}
-      </div>
+      {sortable ? (
+        <div
+          className="px-4 py-1.5 border-t text-[9px] uppercase tracking-[0.15em]"
+          style={{
+            fontFamily: "var(--font-mono)",
+            color: C.textMuted,
+            borderColor: C.borderLight,
+            backgroundColor: C.bg,
+          }}
+        >
+          ↕ click headers to sort
+        </div>
+      ) : null}
     </div>
   );
 }

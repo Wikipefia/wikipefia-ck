@@ -30,6 +30,13 @@ export type MessagePart =
       state: MessagePartState;
       /** When the tool needs human approval ("Quiz" pattern), this is true while pending. */
       needsApproval?: boolean;
+      /**
+       * AI SDK-generated approval id (distinct from `toolCallId`) for tools
+       * that paused on `needsApproval`. Required when submitting an approval
+       * response — without it, AI SDK auto-denies the approval and the
+       * user's input is silently discarded.
+       */
+      approvalId?: string;
     }
   | {
       type: "tool-result";

@@ -10,20 +10,21 @@
     "./convex-transport": "./src/convex-transport/index.ts"
   },
   "peerDependencies": {
-    "react": ">=19",
-    "react-dom": ">=19",
+    "@wikipefia/mdx-renderer": "workspace:*",
     "convex": "^1.33.1",
-    "@wikipefia/mdx-renderer": "workspace:*"
+    "react": ">=19",
+    "react-dom": ">=19"
   },
   "dependencies": {
     "@convex-dev/agent": "^0.6.1",
     "ai": "^6.0.35",
-    "zod": "^3.25.76",
+    "framer-motion": "^12.33.0",
     "react-markdown": "^10.0.0",
+    "rehype-katex": "^7.0.0",
+    "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.0",
     "remark-math": "^6.0.0",
-    "rehype-katex": "^7.0.0",
-    "framer-motion": "^12.33.0"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/react": "^19",
