@@ -22,9 +22,17 @@ const InteractiveQuiz = lazy(() =>
   })),
 );
 
+const QuestionBox = lazy(() =>
+  import("../widgets/QuestionBox").then((m) => ({
+    default: m.QuestionBox,
+  })),
+);
+
 interface ToolCallPartProps {
   part: Extract<MessagePart, { type: "tool-call" }>;
   messageId: string;
+  /** Required for QuestionBox to subscribe to the right side-channel. */
+  threadId: string;
   /** If a matching tool-result part exists in the same message, pass its result. */
   resolvedResult?: unknown;
 }
@@ -32,8 +40,40 @@ interface ToolCallPartProps {
 export function ToolCallPart({
   part,
   messageId,
+  threadId,
   resolvedResult,
 }: ToolCallPartProps) {
+  // QuestionBox renders even when the agent's tool-result is already saved —
+  // the actual conversation lives in our `questionBoxPairs` side-channel,
+  // not the tool-result. Rendering only depends on having the topic arg.
+  if (part.toolName === "QuestionBox" && part.state === "complete") {
+    const args = part.args as { topic?: string };
+    const topic =
+      typeof args?.topic === "string" && args.topic.trim().length > 0
+        ? args.topic
+        : "this section";
+    return (
+      <Suspense
+        fallback={
+          <WidgetSkeleton toolName="QuestionBox" partialArgsKeyCount={1} />
+        }
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <QuestionBox
+            threadId={threadId}
+            messageId={messageId}
+            toolCallId={part.toolCallId}
+            topic={topic}
+          />
+        </motion.div>
+      </Suspense>
+    );
+  }
+
   // Quiz uses an interactive renderer when awaiting user input; when
   // result exists, it renders read-only with feedback.
   if (part.toolName === "Quiz" && part.state === "complete") {

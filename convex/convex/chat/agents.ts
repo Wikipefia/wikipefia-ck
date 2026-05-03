@@ -15,6 +15,34 @@ const openrouter = createOpenRouter({
 });
 
 /**
+ * QuestionBox tool — placed inline by the model after a discrete subtopic.
+ * The user can later click it to ask a follow-up about that subtopic.
+ *
+ * IMPORTANT design choices:
+ *   - NO `needsApproval`: emitting the tool does NOT pause the main stream.
+ *     QuestionBoxes are decorative anchors; the user may or may not click.
+ *   - The tool's `execute` is a no-op `acknowledge`. The actual side-channel
+ *     conversation lives in the `questionBoxPairs` table and is driven
+ *     entirely by `chat/questionBox_action.ts`.
+ *   - `topic` is what the user sees in the box and what the side-channel
+ *     uses to scope the follow-up. Models are instructed in the system
+ *     prompt to make it short + specific.
+ */
+const questionBoxTool = createTool({
+  description:
+    "Inline 'ask a focused follow-up' affordance. Place AFTER a discrete subtopic in a multi-subtopic answer — gives the user a click-to-ask-about-this-specific-thing button without disturbing the main thread. Use ONE per major subtopic; not after every paragraph and not just at the end of short answers.",
+  inputSchema: z.object({
+    topic: z
+      .string()
+      .min(2)
+      .describe(
+        "Short (3–8 words) description of the subtopic this QuestionBox is anchored to, in the user's language. Shown to the user as the box label and used to scope the follow-up. e.g. 'Dispersion vs standard deviation', 'Производная сложной функции'.",
+      ),
+  }),
+  execute: async () => ({ acknowledged: true }),
+});
+
+/**
  * Quiz tool — special-cased to require user approval. Generation pauses
  * when this tool is called; the user submits answers via a mutation that
  * sends an approval response, which schedules the next agent step.
@@ -132,7 +160,79 @@ const lookupWidgetDocs = createTool({
 export const ALL_TOOLS = {
   ...buildWidgetTools(),
   Quiz: quizTool,
+  QuestionBox: questionBoxTool,
   lookupWidgetDocs,
+};
+
+/**
+ * `contextHandler` for the main agent.
+ *
+ * Walks every message about to be sent to the LLM and, for each
+ * `tool-result` whose `toolName` is `QuestionBox`, REPLACES the result's
+ * output with the live Q&A history pulled from the `questionBoxPairs`
+ * table. This way, when the user sends a new top-level message, the main
+ * model sees what the user asked inside any QuestionBox they interacted
+ * with — and what was answered there — without having to maintain a
+ * second copy of that data inside the agent's own message store.
+ *
+ * Mutating IN-MEMORY only: nothing is persisted back to the agent's
+ * message rows. The next call re-derives the enriched context fresh.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const enrichQuestionBoxResults = async (ctx: any, args: any) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allMessages = args.allMessages as any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const enriched: any[] = [];
+  for (const msg of allMessages) {
+    if (msg?.role !== "tool" || !Array.isArray(msg.content)) {
+      enriched.push(msg);
+      continue;
+    }
+    let touched = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const newParts: any[] = [];
+    for (const part of msg.content) {
+      if (
+        part?.type !== "tool-result" ||
+        part.toolName !== "QuestionBox"
+      ) {
+        newParts.push(part);
+        continue;
+      }
+      const pairs = (await ctx.runQuery(
+        internal.chat.questionBox.listPairsByToolCall,
+        { toolCallId: part.toolCallId },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      )) as any[];
+      if (!pairs || pairs.length === 0) {
+        newParts.push(part);
+        continue;
+      }
+      // Surface the sub-conversation. Keeping the original `acknowledged`
+      // flag preserves backward signal that the box was emitted; the new
+      // `conversation` array is what the model will read.
+      newParts.push({
+        ...part,
+        output: {
+          type: "json",
+          value: {
+            acknowledged: true,
+            note:
+              "The user opened this QuestionBox and asked the following follow-up(s). Their question(s) and the model's answer(s) are listed below in chronological order. Treat them as additional shared context if relevant to the new turn.",
+            conversation: pairs.map((p) => ({
+              question: p.question,
+              answer: p.answer,
+              ...(p.status !== "complete" ? { status: p.status } : {}),
+            })),
+          },
+        },
+      });
+      touched = true;
+    }
+    enriched.push(touched ? { ...msg, content: newParts } : msg);
+  }
+  return enriched;
 };
 
 /**
@@ -147,6 +247,7 @@ export const tutorAgent: any = new Agent(components.agent, {
   instructions: SYSTEM_PROMPT_V1,
   tools: ALL_TOOLS,
   stopWhen: stepCountIs(8),
+  contextHandler: enrichQuestionBoxResults,
 });
 
 /**
@@ -163,5 +264,6 @@ export function getAgentForModel(modelId: string): any {
     instructions: SYSTEM_PROMPT_V1,
     tools: ALL_TOOLS,
     stopWhen: stepCountIs(8),
+    contextHandler: enrichQuestionBoxResults,
   });
 }

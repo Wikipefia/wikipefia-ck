@@ -13,6 +13,8 @@ import type * as chat_agents from "../chat/agents.js";
 import type * as chat_export from "../chat/export.js";
 import type * as chat_files from "../chat/files.js";
 import type * as chat_messages from "../chat/messages.js";
+import type * as chat_questionBox from "../chat/questionBox.js";
+import type * as chat_questionBox_action from "../chat/questionBox_action.js";
 import type * as chat_threads from "../chat/threads.js";
 import type * as github from "../github.js";
 import type * as projects from "../projects.js";
@@ -29,6 +31,8 @@ declare const fullApi: ApiFromModules<{
   "chat/export": typeof chat_export;
   "chat/files": typeof chat_files;
   "chat/messages": typeof chat_messages;
+  "chat/questionBox": typeof chat_questionBox;
+  "chat/questionBox_action": typeof chat_questionBox_action;
   "chat/threads": typeof chat_threads;
   github: typeof github;
   projects: typeof projects;

@@ -206,6 +206,11 @@ export const runAgent = internalAction({
             return {
               activeTools: [
                 "lookupWidgetDocs",
+                // QuestionBox is always callable — it's the "place an
+                // ask-here anchor" tool the model uses inline. Forcing a
+                // lookup-first dance for it would break the natural inline
+                // placement we want.
+                "QuestionBox",
                 ...Array.from(unlockedSet),
               ],
             };

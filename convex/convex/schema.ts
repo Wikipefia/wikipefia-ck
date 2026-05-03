@@ -86,4 +86,54 @@ export default defineSchema({
   })
     .index("by_user_updated", ["userId", "updatedAt"])
     .index("by_thread", ["threadId"]),
+
+  /**
+   * Side-channel storage for QuestionBox sub-conversations.
+   *
+   * QuestionBox is a widget the LLM places inline in its answers after
+   * discrete subtopics. The user can click it to ask a focused follow-up
+   * about that subtopic — without disturbing the main thread. Each follow-up
+   * lives as a row here, anchored to the parent assistant message + the
+   * QuestionBox tool-call id. We deliberately don't reuse the agent
+   * component's thread machinery for these because:
+   *   - the sub-conversation is text-only (no widgets, no approvals),
+   *   - we want surgical control over the truncated parent context, and
+   *   - the streamingMessages indirection of the agent component is
+   *     overkill at the rate we patch a single accumulating text field.
+   *
+   * Status lifecycle: pending → streaming → complete | error.
+   */
+  questionBoxPairs: defineTable({
+    /** Parent agent thread id this QuestionBox lives in. */
+    parentThreadId: v.string(),
+    /** Assistant message id whose content includes the QuestionBox tool-call. */
+    parentMessageId: v.string(),
+    /** The QuestionBox tool-call id — multiple QuestionBoxes per message ⇒
+     *  this disambiguates which one this pair belongs to. */
+    toolCallId: v.string(),
+    /** Owner (anonymous session id). */
+    userId: v.string(),
+    /** The topic the LLM wrote into the QuestionBox's tool args, copied here
+     *  so queries don't need to re-resolve the parent message. */
+    topic: v.string(),
+    /** 0-based position within this QuestionBox's Q&A history. Used to
+     *  preserve order across multiple follow-ups. */
+    ord: v.number(),
+    /** What the user asked. */
+    question: v.string(),
+    /** Streamed answer text — patched (throttled) as the LLM produces deltas. */
+    answer: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("streaming"),
+      v.literal("complete"),
+      v.literal("error"),
+    ),
+    errorMessage: v.optional(v.string()),
+    /** OpenRouter model id used for this answer. */
+    model: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_tool_call_ord", ["toolCallId", "ord"])
+    .index("by_user_thread", ["userId", "parentThreadId"]),
 });

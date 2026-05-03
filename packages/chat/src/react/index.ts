@@ -33,6 +33,10 @@ export {
 export { useUploadFile } from "./hooks/use-upload";
 export { useExportThread } from "./hooks/use-export";
 export { useSessionId } from "./hooks/use-session-id";
+export {
+  useQuestionBoxPairs,
+  useAskQuestionBox,
+} from "./hooks/use-questionbox";
 
 // ── Components ──
 export { ChatLayout } from "./components/ChatLayout";

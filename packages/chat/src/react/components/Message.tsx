@@ -108,6 +108,7 @@ export function Message({ message }: MessageProps) {
             <PartList
               parts={visibleParts}
               messageId={message.id}
+              threadId={message.threadId}
               resultByCallId={resultByCallId}
             />
           )}
@@ -135,6 +136,7 @@ export function Message({ message }: MessageProps) {
       <PartList
         parts={visibleParts}
         messageId={message.id}
+        threadId={message.threadId}
         resultByCallId={resultByCallId}
       />
       {isStreaming ? (
@@ -347,6 +349,7 @@ function extractUserAttachments(
 interface PartListProps {
   parts: MessagePart[];
   messageId: string;
+  threadId: string;
   resultByCallId: Map<string, unknown>;
 }
 
@@ -358,7 +361,12 @@ interface PartListProps {
  */
 const HIDDEN_TOOL_NAMES = new Set(["lookupWidgetDocs"]);
 
-function PartList({ parts, messageId, resultByCallId }: PartListProps): ReactNode {
+function PartList({
+  parts,
+  messageId,
+  threadId,
+  resultByCallId,
+}: PartListProps): ReactNode {
   return (
     <>
       {parts.map((part, i) => {
@@ -376,6 +384,7 @@ function PartList({ parts, messageId, resultByCallId }: PartListProps): ReactNod
                 key={key}
                 part={part}
                 messageId={messageId}
+                threadId={threadId}
                 resolvedResult={result}
               />
             );

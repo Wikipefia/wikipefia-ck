@@ -14,6 +14,7 @@ import type {
   ExportFormat,
   ListMessagesResult,
   ListThreadsResult,
+  ListQuestionBoxPairsResult,
   MessagePart,
   MessageStatus,
   ThreadStatus,
@@ -60,6 +61,8 @@ export function useConvexChatTransport({
   const mEditAndRegenerate = useMutation(api.chat.messages.editAndRegenerate);
   const mRegenerateMessage = useMutation(api.chat.messages.regenerateMessage);
   const mSubmitToolResponse = useMutation(api.chat.messages.submitToolResponse);
+
+  const mAskQuestionBox = useMutation(api.chat.questionBox.askQuestionBox);
 
   const mGenerateUploadUrl = useMutation(api.chat.files.generateUploadUrl);
 
@@ -134,13 +137,20 @@ export function useConvexChatTransport({
         return useMemo<ListMessagesResult>(() => {
           const uiStatus: ListMessagesResult["status"] =
             !userId || status === "LoadingFirstPage" ? "loading" : "ready";
+          // The agent's UIMessage type does NOT carry `threadId` — that
+          // attribute lives on the *query* level, not the message level.
+          // Inject the threadId we know from the caller so downstream
+          // widgets (e.g. QuestionBox) that need the thread anchor can
+          // read it off `message.threadId`.
           return {
-            messages: (results ?? []).map(convertUIMessage),
+            messages: (results ?? []).map((m) =>
+              convertUIMessage(m, threadId ?? ""),
+            ),
             status: uiStatus,
             loadMore:
               status === "CanLoadMore" ? () => loadMore(20) : undefined,
           };
-        }, [results, status, loadMore, userId]);
+        }, [results, status, loadMore, userId, threadId]);
       },
 
       async sendMessage(threadId, content, attachments) {
@@ -194,6 +204,48 @@ export function useConvexChatTransport({
         });
       },
 
+      // ── QuestionBox ───────────────────────────────────────
+      useQuestionBoxPairs(toolCallId): ListQuestionBoxPairsResult {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        const data = useQuery(
+          api.chat.questionBox.listPairs,
+          toolCallId && userId ? { userId, toolCallId } : "skip",
+        );
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return useMemo<ListQuestionBoxPairsResult>(() => {
+          if (!toolCallId || !userId) {
+            return { pairs: [], status: "loading" };
+          }
+          if (data === undefined) return { pairs: [], status: "loading" };
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const rows = data as any[];
+          return {
+            pairs: rows.map((r) => ({
+              id: r._id,
+              ord: r.ord,
+              question: r.question,
+              answer: r.answer,
+              status: r.status,
+              errorMessage: r.errorMessage,
+              createdAt: r.createdAt,
+            })),
+            status: "ready",
+          };
+        }, [data, toolCallId]);
+      },
+
+      async askQuestionBox(args) {
+        if (!userId) throw new Error("Session not ready");
+        await mAskQuestionBox({
+          userId,
+          parentThreadId: args.parentThreadId,
+          parentMessageId: args.parentMessageId,
+          toolCallId: args.toolCallId,
+          topic: args.topic,
+          question: args.question,
+        });
+      },
+
       // ── Files ─────────────────────────────────────────────
       async uploadFile(file: File): Promise<AttachmentRef> {
         if (!userId) throw new Error("Session not ready");
@@ -236,6 +288,7 @@ export function useConvexChatTransport({
       mEditAndRegenerate,
       mRegenerateMessage,
       mSubmitToolResponse,
+      mAskQuestionBox,
       mGenerateUploadUrl,
       aExportThread,
     ],
@@ -271,8 +324,15 @@ function convertThread(t: ConvexThreadDoc): Thread {
   };
 }
 
+/**
+ * Convert one agent-component UI message into our app's `ChatMessage` shape.
+ *
+ * `threadIdFallback` is required because the agent's UIMessage type does
+ * NOT carry the threadId — it's an attribute of the query, not the row.
+ * Callers MUST pass the threadId that matched the query they ran.
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function convertUIMessage(m: any): ChatMessage {
+function convertUIMessage(m: any, threadIdFallback: string): ChatMessage {
   const parts: MessagePart[] = [];
   if (Array.isArray(m.parts)) {
     for (const p of m.parts) {
@@ -363,7 +423,9 @@ function convertUIMessage(m: any): ChatMessage {
 
   return {
     id: m._id ?? m.id ?? m.key ?? `m-${m._creationTime ?? Date.now()}`,
-    threadId: m.threadId,
+    // m.threadId is undefined on the agent's UIMessage shape (the type
+    // omits it). Fall back to the threadId we know from the query.
+    threadId: typeof m.threadId === "string" ? m.threadId : threadIdFallback,
     role: m.role,
     parts,
     status,

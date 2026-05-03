@@ -210,6 +210,20 @@ export const WIDGET_DOCS: Record<string, WidgetDoc> = {
   { "from": "Input", "to": "Output", "label": "process" }
 ] }`,
   },
+
+  QuestionBox: {
+    description:
+      "Inline 'ask a focused follow-up' anchor. Embedded mid-answer after a discrete subtopic; the user can click it later to ask about THAT subtopic specifically without disturbing the main thread.",
+    guidance:
+      "PLACEMENT is the whole point: place ONE QuestionBox right after each subtopic in a multi-subtopic answer. Not after every paragraph (over-fragmented). Not just at the end (the value is per-subtopic anchoring). Skip QuestionBoxes entirely in short single-topic answers — one box adds nothing. " +
+      "TOPIC: write a SHORT (3–8 words) description of what subtopic this box is for, in the user's language. The user sees this as the box label, and the follow-up answerer uses it to scope its reply. Be specific — 'Dispersion vs standard deviation' beats 'Statistics'. " +
+      "QuestionBox is ALWAYS callable — it doesn't require a lookupWidgetDocs call first. " +
+      "Emitting QuestionBox does NOT pause your generation: keep writing the next subtopic right after.",
+    examples: `One QuestionBox per subtopic, inline. Each call's args:
+{ "topic": "Дискретные случайные величины" }
+{ "topic": "Continuous random variables" }
+{ "topic": "Probability density function" }`,
+  },
 };
 
 /** Get the names of all widgets that have docs. */

@@ -125,4 +125,7 @@ export type {
   ListThreadsResult,
   ListMessagesResult,
   CreateThreadOptions,
+  QuestionBoxPair,
+  ListQuestionBoxPairsResult,
+  AskQuestionBoxArgs,
 } from "./transport";

@@ -23,6 +23,30 @@ export interface ListMessagesResult {
   loadMore?: () => void;
 }
 
+/** One question/answer entry inside a QuestionBox sub-conversation. */
+export interface QuestionBoxPair {
+  id: string;
+  ord: number;
+  question: string;
+  answer: string;
+  status: "pending" | "streaming" | "complete" | "error";
+  errorMessage?: string;
+  createdAt: number;
+}
+
+export interface ListQuestionBoxPairsResult {
+  pairs: QuestionBoxPair[];
+  status: "loading" | "ready";
+}
+
+export interface AskQuestionBoxArgs {
+  parentThreadId: string;
+  parentMessageId: string;
+  toolCallId: string;
+  topic: string;
+  question: string;
+}
+
 export interface CreateThreadOptions {
   initialMessage: string;
   attachments: AttachmentRef[];
@@ -88,6 +112,18 @@ export interface ChatTransport {
     response: unknown,
     approvalId?: string | null,
   ): Promise<void>;
+
+  // ── QuestionBox sub-conversations ──────────────────────
+  /**
+   * Reactive subscription to the Q&A pairs anchored to one QuestionBox
+   * tool-call. Pass `null` while the toolCallId is still resolving on
+   * the client to keep this hook safe to call unconditionally.
+   */
+  useQuestionBoxPairs(
+    toolCallId: string | null,
+  ): ListQuestionBoxPairsResult;
+  /** Submit a follow-up question into a QuestionBox; streams the answer. */
+  askQuestionBox(args: AskQuestionBoxArgs): Promise<void>;
 
   // ── Files ──────────────────────────────────────────────
   /** Upload a file and return its reference (storageId, name, mimeType, size). */
