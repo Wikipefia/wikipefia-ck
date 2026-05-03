@@ -5,6 +5,10 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "convex:dev": "convex dev",
+    "convex:bootstrap": "convex dev --once --typecheck=disable",
+    "convex:deploy": "convex deploy",
+    "convex:codegen": "convex codegen",
+    "convex:env": "convex env set --from-file .env.local --force",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types"
