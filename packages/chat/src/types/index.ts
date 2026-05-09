@@ -96,6 +96,12 @@ export interface Thread {
   status: ThreadStatus;
   modelId: string;
   systemPromptVersion: string;
+  /** Thread mode id (from `@wikipefia/chat/modes`). Undefined ⇒ default mode. */
+  mode?: string;
+  /** Resolved-snapshot mode settings at thread creation time. */
+  modeSettings?: Record<string, unknown>;
+  /** Prompt version of the mode at creation time (for replay determinism). */
+  modePromptVersion?: string;
   createdAt: number;
   updatedAt: number;
 }

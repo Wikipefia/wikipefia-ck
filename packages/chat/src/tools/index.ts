@@ -46,4 +46,5 @@ export {
 export {
   SYSTEM_PROMPT_V1,
   SYSTEM_PROMPT_VERSION,
+  widgetCatalogLines,
 } from "./system-prompt";

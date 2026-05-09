@@ -4,6 +4,8 @@ import { v } from "convex/values";
 import { action } from "../_generated/server";
 import { components, internal } from "../_generated/api";
 import { listMessages as agentListMessages } from "@convex-dev/agent";
+import { applyDefaults, getMode } from "@wikipefia/chat/modes";
+import { widgetCatalogLines } from "@wikipefia/chat/tools";
 
 /**
  * Debug-export action. Returns the entire thread serialized to one of:
@@ -62,6 +64,22 @@ export const exportThread = action({
       (a, b) => (a._creationTime ?? 0) - (b._creationTime ?? 0),
     );
 
+    // Resolve the full system prompt that the agent used for this thread.
+    // For older threads (before the modes feature) we fall back to the
+    // default mode's system prompt, which is the same as what the agent
+    // used at the time. The catalog of widgets is included via the same
+    // helper the agent calls at runtime, so the resulting string matches
+    // exactly what the LLM saw.
+    const resolvedMode = getMode(meta.mode);
+    const resolvedModeSettings = applyDefaults(
+      resolvedMode,
+      (meta.modeSettings ?? null) as Record<string, unknown> | null,
+    );
+    const systemPromptText = resolvedMode.buildSystemPrompt({
+      settings: resolvedModeSettings,
+      widgetCatalog: widgetCatalogLines(),
+    });
+
     if (format === "json") {
       return {
         content: JSON.stringify(
@@ -71,6 +89,11 @@ export const exportThread = action({
               title: meta.title,
               modelId: meta.modelId,
               systemPromptVersion: meta.systemPromptVersion,
+              mode: meta.mode,
+              modeSettings: meta.modeSettings,
+              modePromptVersion: meta.modePromptVersion,
+              resolvedModeSettings,
+              systemPrompt: systemPromptText,
               createdAt: meta.createdAt,
               updatedAt: meta.updatedAt,
               status: meta.status,
@@ -94,6 +117,12 @@ export const exportThread = action({
           {
             model: meta.modelId,
             systemPromptVersion: meta.systemPromptVersion,
+            mode: meta.mode,
+            modeSettings: resolvedModeSettings,
+            modePromptVersion: meta.modePromptVersion,
+            // Full system prompt the agent used at thread-creation time.
+            // Replays should feed this verbatim to the model.
+            system: systemPromptText,
             messages,
           },
           null,
@@ -110,7 +139,26 @@ export const exportThread = action({
     lines.push(`- **Thread ID:** \`${meta.threadId}\``);
     lines.push(`- **Model:** \`${meta.modelId}\``);
     lines.push(`- **System prompt version:** \`${meta.systemPromptVersion}\``);
+    if (meta.mode) {
+      lines.push(`- **Mode:** \`${meta.mode}\` (prompt v\`${meta.modePromptVersion ?? "?"}\`)`);
+      if (meta.modeSettings) {
+        lines.push(
+          `- **Mode settings:** \`${JSON.stringify(resolvedModeSettings)}\``,
+        );
+      }
+    }
     lines.push(`- **Created:** ${new Date(meta.createdAt).toISOString()}`);
+    lines.push("");
+    lines.push("---");
+    lines.push("");
+    // System prompt — full resolved text (mode + settings applied + widget
+    // catalog). Quoted in a fenced block so markdown viewers don't try to
+    // re-render the embedded markdown formatting.
+    lines.push("## System prompt");
+    lines.push("");
+    lines.push("```");
+    lines.push(systemPromptText);
+    lines.push("```");
     lines.push("");
     lines.push("---");
     lines.push("");

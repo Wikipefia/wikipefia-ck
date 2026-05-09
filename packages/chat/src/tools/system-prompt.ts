@@ -26,7 +26,11 @@ import { WIDGET_DOCS } from "./widget-docs";
 
 export const SYSTEM_PROMPT_VERSION = "v5";
 
-function widgetCatalogLines(): string {
+/**
+ * Markdown bullet-list of widget names + one-line descriptions, suitable
+ * for splicing into a system prompt. Exported so other modes can reuse it.
+ */
+export function widgetCatalogLines(): string {
   return Object.entries(WIDGET_DOCS)
     .map(([name, doc]) => `- **${name}** — ${doc.description}`)
     .join("\n");
@@ -95,7 +99,7 @@ If you write any such phrase, the user will see the announcement but the widget 
 3. NEVER end a step with prose that announces or implies a widget without an accompanying tool call (lookup OR the widget itself) in the same step. See the "promise without payoff" section above.
 4. After a Quiz tool call, you'll receive the user's answers as a tool result. Evaluate each: explain why the choice was right or wrong and reinforce the correct concept.
 5. NEVER fabricate facts. If unsure, say so explicitly.
-6. For one-line equations use inline \`$...$\` in markdown. Reserve MathBlock for multi-line proofs or matrices.
+6. For one-line equations use inline \`$...$\` in markdown. For display math use \`$$...$$\` (with blank lines around it). Reserve MathBlock for multi-line proofs or matrices. NEVER use AMS-LaTeX delimiters \`\\[...\\]\` or \`\\(...\\)\` — our renderer only supports \`$\`/\`$$\` and your equations will appear as raw text.
 7. For read-only code samples use a fenced markdown code block. Reserve CodePlayground for runnable demos the user might edit.
 8. If the user uploads a PDF or image, treat it as primary source material and reference it explicitly.
 9. Use widgets generously — pick whichever ones genuinely help the explanation.

@@ -11,7 +11,10 @@ import {
   saveMessage,
   updateThreadMetadata,
 } from "@convex-dev/agent";
-import { SYSTEM_PROMPT_VERSION } from "@wikipefia/chat/tools";
+import {
+  applyDefaults,
+  getMode,
+} from "@wikipefia/chat/modes";
 
 /**
  * Public queries / mutations for managing threads (CRUD + cancellation).
@@ -46,6 +49,9 @@ export const listMyThreads = query({
         status: r.status,
         modelId: r.modelId,
         systemPromptVersion: r.systemPromptVersion,
+        mode: r.mode,
+        modeSettings: r.modeSettings,
+        modePromptVersion: r.modePromptVersion,
         createdAt: r.createdAt,
         updatedAt: r.updatedAt,
       }));
@@ -67,6 +73,9 @@ export const getThread = query({
       status: row.status,
       modelId: row.modelId,
       systemPromptVersion: row.systemPromptVersion,
+      mode: row.mode,
+      modeSettings: row.modeSettings,
+      modePromptVersion: row.modePromptVersion,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };
@@ -88,9 +97,34 @@ export const createThread = mutation({
       }),
     ),
     modelId: v.string(),
+    /** Optional thread mode id; falls back to "default" when omitted. */
+    mode: v.optional(v.string()),
+    /** Partial mode settings; defaults are applied before persistence. */
+    modeSettings: v.optional(v.any()),
   },
-  handler: async (ctx, { userId, initialMessage, attachments, modelId }) => {
-    const title = deriveTitle(initialMessage);
+  handler: async (
+    ctx,
+    { userId, initialMessage, attachments, modelId, mode, modeSettings },
+  ) => {
+    // Derive a title. When the user sent attachments without text (typical
+    // tutor-mode flow), fall back to the first attachment's filename so the
+    // sidebar entry is informative immediately. The async title-generation
+    // action (which uses a cheap model) runs only when there's actual text
+    // to summarize — see `generateTitle` below.
+    const title =
+      initialMessage.trim().length === 0 && attachments.length > 0
+        ? deriveTitle(stripExtension(attachments[0].name))
+        : deriveTitle(initialMessage);
+
+    // Resolve the requested mode (falls back to default for unknown ids)
+    // and snapshot its settings with defaults applied. The snapshot is what
+    // we persist so future tweaks to a mode's defaults don't retroactively
+    // alter old threads.
+    const resolvedMode = getMode(mode);
+    const resolvedSettings = applyDefaults(
+      resolvedMode,
+      (modeSettings ?? null) as Record<string, unknown> | null,
+    );
 
     // Create thread in the agent component
     const threadId = await agentCreateThread(ctx, components.agent, {
@@ -107,7 +141,14 @@ export const createThread = mutation({
       title,
       status: "generating",
       modelId,
-      systemPromptVersion: SYSTEM_PROMPT_VERSION,
+      // Compose a unique systemPromptVersion that encodes BOTH the mode id
+      // and its prompt version, so debug-export replays know exactly what
+      // produced this thread without needing to consult MODE_REGISTRY at
+      // replay time.
+      systemPromptVersion: `${resolvedMode.id}@${resolvedMode.promptVersion}`,
+      mode: resolvedMode.id,
+      modeSettings: resolvedSettings,
+      modePromptVersion: resolvedMode.promptVersion,
       cancelRequested: false,
       generationId: 1,
       unlockedWidgets: [],
@@ -129,16 +170,24 @@ export const createThread = mutation({
 
     // Kick off main agent generation AND title generation in parallel.
     // Title gen uses just the first message + a cheap model, doesn't need
-    // to wait for the assistant response.
+    // to wait for the assistant response. We skip it entirely when the
+    // user sent an attachment-only message — there's no prose to summarize,
+    // and the filename-derived title we set above is already meaningful.
     await ctx.scheduler.runAfter(0, internal.chat.agent_action.runAgent, {
       threadId,
       promptMessageId: messageId,
       generationId: 1,
     });
-    await ctx.scheduler.runAfter(0, internal.chat.agent_action.generateTitle, {
-      threadId,
-      firstUserMessage: initialMessage,
-    });
+    if (initialMessage.trim().length > 0) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.chat.agent_action.generateTitle,
+        {
+          threadId,
+          firstUserMessage: initialMessage,
+        },
+      );
+    }
 
     return { threadId };
   },
@@ -351,7 +400,15 @@ async function buildUserContent(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const content: any[] = [{ type: "text", text }];
+  const content: any[] = [];
+  // Only include a text part if the user actually typed something. Some
+  // providers (notably Anthropic via Bedrock and Azure-strict) reject
+  // user messages whose only text part is the empty string. When the
+  // user sent an attachment-only message — typical for tutor mode where
+  // the file IS the prompt — we just skip the text part entirely.
+  if (text.trim().length > 0) {
+    content.push({ type: "text", text });
+  }
   for (const a of attachments) {
     const url = await ctx.storage.getUrl(a.storageId);
     if (!url) {
@@ -395,4 +452,9 @@ function deriveTitle(text: string): string {
   const cut = trimmed.slice(0, 50);
   const lastSpace = cut.lastIndexOf(" ");
   return (lastSpace > 20 ? cut.slice(0, lastSpace) : cut) + "…";
+}
+
+/** Strip a trailing file extension (".pdf", ".docx", etc.) for nicer titles. */
+function stripExtension(name: string): string {
+  return name.replace(/\.[^./\\]+$/, "");
 }

@@ -85,8 +85,10 @@ export const WIDGET_DOCS: Record<string, WidgetDoc> = {
   MathBlock: {
     description: "Multi-line LaTeX math expression rendered with KaTeX.",
     guidance:
-      "Use for displayed equations with multiple lines or complex layouts (matrices, derivations). For one-line equations prefer inline `$...$` in markdown.",
-    examples: `{ "content": "\\\\begin{aligned}\\\\nabla \\\\cdot \\\\vec E &= \\\\frac{\\\\rho}{\\\\varepsilon_0} \\\\\\\\ \\\\nabla \\\\cdot \\\\vec B &= 0 \\\\end{aligned}" }`,
+      "Use for displayed equations with multiple lines or complex layouts (matrices, derivations). For one-line equations prefer inline `$...$` in markdown. " +
+      "The `content` field is RAW LaTeX — do NOT wrap it in `$$...$$` or `\\[...\\]`; the renderer adds display-math delimiters automatically. Use `\\\\` for line breaks inside `aligned`/`pmatrix`/etc. environments.",
+    examples: `{ "content": "F(x) = P(X < x) \\\\quad \\\\text{for} \\\\quad -\\\\infty < x < \\\\infty" }
+{ "content": "\\\\begin{aligned}\\\\nabla \\\\cdot \\\\vec E &= \\\\frac{\\\\rho}{\\\\varepsilon_0} \\\\\\\\ \\\\nabla \\\\cdot \\\\vec B &= 0 \\\\end{aligned}" }`,
   },
 
   BarChart: {

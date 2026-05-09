@@ -3,9 +3,32 @@
 import { v } from "convex/values";
 import { generateText } from "ai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { saveMessage } from "@convex-dev/agent";
 import { internalAction } from "../_generated/server";
 import { components, internal } from "../_generated/api";
-import { getAgentForModel } from "./agents";
+import { getAgentForThread } from "./agents";
+import { getMode } from "@wikipefia/chat/modes";
+
+/**
+ * Tools that fully satisfy tutor-mode "Phase C" (verify understanding) —
+ * each puts the agent into `awaiting_user` because they have
+ * `needsApproval: true`. If the model finishes a tutor-mode turn and the
+ * last assistant message contains substantial prose but NONE of these,
+ * Phase C was skipped (the "promise without payoff" failure mode the
+ * system prompt warns about). We auto-retry once with a hidden reminder.
+ */
+const PAUSING_TOOLS = new Set([
+  "AskUserQuestion",
+  "Quiz",
+  "NextTopicButton",
+]);
+
+/**
+ * Marker prepended to the synthetic user message we save when retrying a
+ * Phase-C-skipped tutor turn. Filtered from the UI in `convex-transport`.
+ * Obscure enough that no real user would type it.
+ */
+export const PHASE_C_RETRY_MARKER = "__WIKIPEFIA_INTERNAL_PHASE_C_RETRY__";
 
 /**
  * The agent loop. Triggered by:
@@ -50,8 +73,19 @@ export const runAgent = internalAction({
      * already-scheduled jobs from before this field existed.
      */
     generationId: v.optional(v.number()),
+    /**
+     * True when this is a Phase-C-recovery retry triggered by our
+     * post-stream check (tutor mode only). Prevents infinite retry loops:
+     * the recovery itself never recovers again, even if it also skips.
+     * The reminder user message saved before this run carries the
+     * PHASE_C_RETRY_MARKER prefix so the UI hides it.
+     */
+    isPhaseCRetry: v.optional(v.boolean()),
   },
-  handler: async (ctx, { threadId, promptMessageId, generationId }) => {
+  handler: async (
+    ctx,
+    { threadId, promptMessageId, generationId, isPhaseCRetry },
+  ) => {
     const meta = await ctx.runQuery(internal.chat.threads.getMeta, {
       threadId,
     });
@@ -77,7 +111,8 @@ export const runAgent = internalAction({
       return;
     }
 
-    const agent = getAgentForModel(meta.modelId);
+    const agent = getAgentForThread(meta);
+    const mode = getMode(meta.mode);
     const abortController = new AbortController();
 
     // Defensive cleanup: if a previous run was superseded by us and managed
@@ -203,17 +238,51 @@ export const runAgent = internalAction({
               { threadId },
             )) as string[];
             for (const w of fresh) unlockedSet.add(w);
-            return {
-              activeTools: [
+
+            // Apply the thread-mode's tool policy. Three modes:
+            //
+            //   - "default" — original behavior. Always-active baseline is
+            //     `lookupWidgetDocs` + `QuestionBox` + every widget the
+            //     model has unlocked via `lookupWidgetDocs` so far. The
+            //     model can dynamically grow its toolkit during the
+            //     conversation.
+            //
+            //   - "include" — STRICT whitelist. ONLY the listed tools +
+            //     `lookupWidgetDocs` are active. We deliberately drop
+            //     `QuestionBox` and any widgets the model unlocked via
+            //     `lookupWidgetDocs` — modes like tutor want a focused
+            //     toolkit and shouldn't accidentally expose tools (e.g.
+            //     `Quiz` when tutor uses `AskUserQuestion` instead) just
+            //     because the model called `lookupWidgetDocs` on them.
+            //     If a mode wants QuestionBox/lookup-unlocking, it must
+            //     list them explicitly in `allowedTools.tools`.
+            //
+            //   - "exclude" — start from the default-mode baseline and
+            //     drop the listed tools.
+            let activeTools: string[];
+            if (mode.allowedTools.kind === "include") {
+              // Strict whitelist. lookupWidgetDocs is kept so the model
+              // can still read full schemas/examples for the listed
+              // tools, but the unlock-via-lookup mechanism is bypassed.
+              activeTools = Array.from(
+                new Set(["lookupWidgetDocs", ...mode.allowedTools.tools]),
+              );
+            } else if (mode.allowedTools.kind === "exclude") {
+              const baseActive = [
                 "lookupWidgetDocs",
-                // QuestionBox is always callable — it's the "place an
-                // ask-here anchor" tool the model uses inline. Forcing a
-                // lookup-first dance for it would break the natural inline
-                // placement we want.
                 "QuestionBox",
                 ...Array.from(unlockedSet),
-              ],
-            };
+              ];
+              const excluded = new Set(mode.allowedTools.tools);
+              activeTools = baseActive.filter((t) => !excluded.has(t));
+            } else {
+              activeTools = [
+                "lookupWidgetDocs",
+                "QuestionBox",
+                ...Array.from(unlockedSet),
+              ];
+            }
+            return { activeTools };
           },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onStepFinish: async () => {
@@ -264,6 +333,34 @@ export const runAgent = internalAction({
 
       // Determine final status: pending approval → awaiting_user, else idle.
       const hasPendingApproval = await checkPendingApproval(ctx, threadId);
+
+      // ── Tutor-mode Phase-C recovery ──────────────────────
+      // If we just finished a tutor-mode turn, the model wrote substantial
+      // prose, and there's NO pausing tool call (Quiz/AskUserQuestion/
+      // NextTopicButton) — the system prompt's contract was violated. The
+      // model wrote something like "Проверим, что ты усвоил" and stopped
+      // without actually emitting the question tool. This is the
+      // "promise without payoff" failure mode.
+      //
+      // We schedule ONE retry that injects a hidden user-role reminder and
+      // reruns the agent. `isPhaseCRetry` flag prevents infinite loops —
+      // the retry itself never re-recovers.
+      if (
+        !hasPendingApproval &&
+        !isPhaseCRetry &&
+        mode.id === "tutor" &&
+        (await detectPhaseCSkip(ctx, threadId))
+      ) {
+        // Status stays "generating" — the retry's runAgent will manage it.
+        await scheduleTutorPhaseCRetry(
+          ctx,
+          threadId,
+          meta.userId,
+          generationId,
+        );
+        return;
+      }
+
       await ctx.runMutation(internal.chat.threads.setStatus, {
         threadId,
         status: hasPendingApproval ? "awaiting_user" : "idle",
@@ -312,6 +409,131 @@ export const runAgent = internalAction({
     }
   },
 });
+
+/**
+ * Tutor-mode Phase-C-skip detector.
+ *
+ * Looks at the most recent assistant message. Returns true iff:
+ *   - the message has substantial prose content (>= 60 chars of text), AND
+ *   - it contains ZERO tool calls from PAUSING_TOOLS.
+ *
+ * Note: we don't worry about QuestionBox here — it doesn't pause and
+ * doesn't satisfy Phase C either way. A tutor-mode message with ONLY a
+ * QuestionBox and prose still counts as "skipped".
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function detectPhaseCSkip(ctx: any, threadId: string): Promise<boolean> {
+  try {
+    const result = await ctx.runQuery(
+      components.agent.messages.listMessagesByThreadId,
+      {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        threadId: threadId as any,
+        order: "desc",
+        paginationOpts: { numItems: 5, cursor: null },
+      },
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const items = (result?.page ?? []) as any[];
+    // Find the most recent assistant message.
+    const lastAssistant = items.find(
+      (m) => (m.message?.role ?? m.role) === "assistant",
+    );
+    if (!lastAssistant) return false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const content: any[] = Array.isArray(lastAssistant.message?.content)
+      ? lastAssistant.message.content
+      : Array.isArray(lastAssistant.parts)
+        ? lastAssistant.parts
+        : [];
+    let textLen = 0;
+    let hasPausingTool = false;
+    for (const part of content) {
+      const t = part?.type;
+      if (t === "text" && typeof part.text === "string") {
+        textLen += part.text.length;
+      } else if (
+        // tool-call shapes vary by SDK version; we accept any of these.
+        (t === "tool-call" ||
+          (typeof t === "string" && t.startsWith("tool-") && t !== "tool-result")) &&
+        typeof part.toolName === "string" &&
+        PAUSING_TOOLS.has(part.toolName)
+      ) {
+        hasPausingTool = true;
+      }
+    }
+    if (hasPausingTool) return false;
+    // Threshold: too-short messages probably aren't Phase B explanations
+    // (could be a clarifying question, a cancellation echo, etc.). 60 chars
+    // is roughly "one sentence" — anything substantive triggers recovery.
+    return textLen >= 60;
+  } catch (err) {
+    console.warn("detectPhaseCSkip failed", err);
+    return false;
+  }
+}
+
+/**
+ * Save a hidden user-role reminder + schedule another runAgent that's
+ * flagged as a Phase-C retry. The reminder text starts with
+ * `PHASE_C_RETRY_MARKER` so the UI filters it out (see convex-transport).
+ *
+ * The model receives a short, surgical instruction: emit ONE
+ * AskUserQuestion, no prose. This compensates for the "promise without
+ * payoff" failure mode where the model writes "Проверим, что ты усвоил"
+ * and stops without the tool call.
+ */
+async function scheduleTutorPhaseCRetry(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ctx: any,
+  threadId: string,
+  userId: string,
+  generationId: number | undefined,
+): Promise<void> {
+  const reminderText =
+    `${PHASE_C_RETRY_MARKER}\n\n` +
+    `СИСТЕМНОЕ НАПОМИНАНИЕ (Phase-C-retry, авто-инжект):\n\n` +
+    `В предыдущем своём ответе ты НАПИСАЛ прозу про проверку понимания ` +
+    `(например, "Проверим, что ты усвоил") но НЕ ВЫЗВАЛ tool ` +
+    `\`AskUserQuestion\`. Это и есть failure mode "promise without ` +
+    `payoff", про который тебя предупреждал system prompt — пользователь ` +
+    `увидел обещание квиза без квиза.\n\n` +
+    `СЕЙЧАС: вызови ровно ОДИН \`AskUserQuestion\` с 1–3 вопросами по ` +
+    `ТОЛЬКО ЧТО объяснённому чанку. Никакой прозы — только tool-call. ` +
+    `Если ты уже использовал тип \`free_text\`, теперь подойдёт ` +
+    `\`multiple_choice\` (и наоборот) — для разнообразия проверки.\n\n` +
+    `Это сообщение является внутренним напоминанием системы, не от ` +
+    `пользователя. Не извиняйся, не комментируй — просто эмить tool.`;
+  const { messageId } = await saveMessage(ctx, components.agent, {
+    threadId,
+    userId,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    message: {
+      role: "user",
+      content: [{ type: "text", text: reminderText }],
+    } as any,
+  });
+  // Reuse the same generationId — this is a continuation of the same
+  // logical run, not a new user-initiated turn. (If the user clicks
+  // regenerate / sends a new message before recovery completes, the
+  // generationId will bump and supersede this retry naturally.)
+  //
+  // Delay recovery by ~250ms (matches saveStreamDeltas throttle window)
+  // so the previous stream's last delta-flush + message finalization
+  // settle before the new streamText begins. Without this, useUIMessages
+  // can briefly return BOTH the prior orphaned stream entry AND the new
+  // pending stub, each rendering its own TypingIndicator.
+  await ctx.scheduler.runAfter(
+    250,
+    internal.chat.agent_action.runAgent,
+    {
+      threadId,
+      promptMessageId: messageId,
+      generationId,
+      isPhaseCRetry: true,
+    },
+  );
+}
 
 /**
  * Check if any tool call in the latest assistant message is awaiting approval.

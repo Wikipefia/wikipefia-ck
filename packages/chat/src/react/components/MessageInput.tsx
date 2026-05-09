@@ -9,10 +9,30 @@ import {
 } from "react";
 import { C } from "@wikipefia/mdx-renderer/theme";
 import type { AttachmentRef, ModelDef } from "../../types";
+import type { ModeDefinition } from "@wikipefia/chat/modes";
 import { Button } from "./primitives/Button";
 import { IconButton } from "./primitives/IconButton";
 import { useUploadFile } from "../hooks/use-upload";
 import { FilePart } from "./parts/FilePart";
+import { ModePicker } from "./ModePicker";
+import { ModeSettingsPanel } from "./ModeSettingsPanel";
+
+/**
+ * When provided, MessageInput shows a "+" trigger that opens a mode-picker
+ * dropdown. Selecting a non-default mode reveals an inline settings panel.
+ *
+ * Used on the new-thread composer (apps/wikipefia-chat/app/page.tsx).
+ * Inside a thread (`ThreadView`), this prop is intentionally NOT passed —
+ * the mode is locked at thread creation time.
+ */
+export interface MessageInputModePickerConfig {
+  modes: ModeDefinition[];
+  selectedId: string;
+  settings: Record<string, unknown>;
+  onSelect: (modeId: string, defaults: Record<string, unknown>) => void;
+  onSettingChange: (key: string, value: unknown) => void;
+  locale?: "en" | "ru";
+}
 
 interface MessageInputProps {
   onSend: (text: string, attachments: AttachmentRef[]) => Promise<void> | void;
@@ -20,6 +40,8 @@ interface MessageInputProps {
   placeholder?: string;
   /** When provided, used to filter incompatible files (e.g. PDF on non-PDF model). */
   currentModel?: ModelDef;
+  /** Optional mode picker (only shown on new-thread composer). */
+  modePicker?: MessageInputModePickerConfig;
 }
 
 export function MessageInput({
@@ -27,7 +49,19 @@ export function MessageInput({
   disabled,
   placeholder = "Ask anything…",
   currentModel,
+  modePicker,
 }: MessageInputProps) {
+  // Resolve the currently-selected mode (if a picker is wired). The
+  // settings panel only shows for non-default modes — default mode has
+  // no settings and no panel.
+  const selectedMode = modePicker
+    ? modePicker.modes.find((m) => m.id === modePicker.selectedId) ?? null
+    : null;
+  const showSettingsPanel =
+    selectedMode &&
+    selectedMode.id !== "default" &&
+    selectedMode.settings.length > 0;
+
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<
     Array<AttachmentRef & { url?: string }>
@@ -38,7 +72,14 @@ export function MessageInput({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const { upload, uploading, error: uploadError } = useUploadFile();
 
-  const canSend = !disabled && !sending && text.trim().length > 0;
+  // Send is enabled when EITHER text or attachments are present. Allowing
+  // attachments-only sends supports the tutor-mode workflow where the user
+  // uploads a study file and just hits send — the model picks up the
+  // material on its own (the system prompt tells it how).
+  const canSend =
+    !disabled &&
+    !sending &&
+    (text.trim().length > 0 || attachments.length > 0);
 
   const send = useCallback(async () => {
     if (!canSend) return;
@@ -120,6 +161,16 @@ export function MessageInput({
       onDragLeave={() => setDragOver(false)}
       onDrop={onDrop}
     >
+      {showSettingsPanel && selectedMode ? (
+        <ModeSettingsPanel
+          mode={selectedMode}
+          values={modePicker!.settings}
+          onChange={modePicker!.onSettingChange}
+          locale={modePicker!.locale ?? "ru"}
+          disabled={disabled || sending}
+        />
+      ) : null}
+
       {attachments.length > 0 ? (
         <div
           className="flex flex-wrap gap-2 px-3 py-2 border-b"
@@ -172,6 +223,15 @@ export function MessageInput({
         style={{ borderColor: C.borderLight }}
       >
         <div className="flex items-center gap-1">
+          {modePicker ? (
+            <ModePicker
+              modes={modePicker.modes}
+              selectedId={modePicker.selectedId}
+              onSelect={modePicker.onSelect}
+              locale={modePicker.locale ?? "ru"}
+              disabled={disabled || sending}
+            />
+          ) : null}
           <IconButton
             aria-label="Attach files"
             size="sm"

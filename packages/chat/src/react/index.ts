@@ -47,6 +47,11 @@ export { MessageList } from "./components/MessageList";
 export { MessageInput } from "./components/MessageInput";
 export { MessageEditor } from "./components/MessageEditor";
 export { ModelPicker } from "./components/ModelPicker";
+export { ModePicker, type ModePickerProps } from "./components/ModePicker";
+export {
+  ModeSettingsPanel,
+  type ModeSettingsPanelProps,
+} from "./components/ModeSettingsPanel";
 export { DebugExportMenu } from "./components/DebugExportMenu";
 export { TypingIndicator } from "./components/TypingIndicator";
 export { ErrorBanner } from "./components/ErrorBanner";

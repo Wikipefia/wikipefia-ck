@@ -5,6 +5,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { createTypography } from "@wikipefia/mdx-renderer";
+import { normalizeLatexDelimiters } from "../parts/normalize-latex";
 
 const typography = createTypography();
 
@@ -45,13 +46,14 @@ export interface InlineMarkdownProps {
  * visual line break.
  */
 export function InlineMarkdown({ text }: InlineMarkdownProps) {
+  const normalized = normalizeLatexDelimiters(text);
   return (
     <ReactMarkdown
       remarkPlugins={REMARK_PLUGINS}
       rehypePlugins={REHYPE_PLUGINS}
       components={INLINE_TYPOGRAPHY}
     >
-      {text}
+      {normalized}
     </ReactMarkdown>
   );
 }

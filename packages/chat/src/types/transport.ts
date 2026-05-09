@@ -51,6 +51,13 @@ export interface CreateThreadOptions {
   initialMessage: string;
   attachments: AttachmentRef[];
   modelId: string;
+  /** Optional mode id (from `@wikipefia/chat/modes`). Omit/undefined ⇒ default mode. */
+  mode?: string;
+  /**
+   * Optional partial mode settings. Defaults are applied server-side before
+   * persistence; the resolved snapshot is what gets stored.
+   */
+  modeSettings?: Record<string, unknown>;
 }
 
 export interface ChatTransport {

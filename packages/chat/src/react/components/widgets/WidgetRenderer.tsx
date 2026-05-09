@@ -40,6 +40,7 @@ import { createTypography } from "@wikipefia/mdx-renderer";
 import { C } from "@wikipefia/mdx-renderer/theme";
 import { COMPOSITE_WIDGET_NAMES } from "../../../tools";
 import { InlineMarkdown } from "./inline-markdown";
+import { normalizeLatexDelimiters } from "../parts/normalize-latex";
 
 const typography = createTypography();
 
@@ -525,6 +526,13 @@ function expandComposite(toolName: string, rawArgs: any): ReactNode {
  * DataTable gets special treatment: we inject an `renderCell` callback so
  * each cell (and column header) goes through inline markdown — which means
  * `$...$` LaTeX, **bold**, *italic*, links etc. all work inside cells.
+ *
+ * MathBlock also gets special treatment: the model is told to pass raw
+ * LaTeX (no delimiters), but our markdown pipeline only invokes KaTeX
+ * when content is wrapped in `$$...$$`. So for MathBlock we ensure the
+ * content is properly delimited before handing off to MarkdownBody.
+ * Without this, equations render as plain text with visible `\quad`,
+ * `\text{...}`, etc.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function renderSimple(toolName: string, rawArgs: any): ReactNode {
@@ -544,6 +552,16 @@ function renderSimple(toolName: string, rawArgs: any): ReactNode {
     );
   }
 
+  if (toolName === "MathBlock") {
+    const wrapped = wrapAsDisplayMath(typeof content === "string" ? content : "");
+    if (wrapped == null) return null;
+    return (
+      <Component {...props}>
+        <MarkdownBody text={wrapped} />
+      </Component>
+    );
+  }
+
   if (typeof content === "string" && content.length > 0) {
     return (
       <Component {...props}>
@@ -552,6 +570,40 @@ function renderSimple(toolName: string, rawArgs: any): ReactNode {
     );
   }
   return <Component {...props} />;
+}
+
+/**
+ * Ensure a MathBlock's content is wrapped in `$$...$$` so remark-math /
+ * rehype-katex actually renders it as KaTeX. Returns null when the
+ * content is empty (no math to render).
+ *
+ * Handles three input shapes the model commonly produces:
+ *   1. Raw LaTeX without delimiters → wrap in $$...$$
+ *   2. Already wrapped in $$...$$ → leave as-is
+ *   3. AMS-LaTeX delimiters \[...\] / \(...\) → normalize first, then wrap
+ */
+function wrapAsDisplayMath(content: string): string | null {
+  if (!content) return null;
+  // Step 1: normalize AMS-LaTeX delimiters, in case the model wrote
+  // \[ ... \] inside the MathBlock content.
+  let s = normalizeLatexDelimiters(content).trim();
+  if (s.length === 0) return null;
+  // Step 2: if already wrapped in $$...$$, pass through.
+  if (s.startsWith("$$") && s.endsWith("$$") && s.length > 4) return s;
+  // Step 3: strip a stray inline-$ wrapper (model used inline-math syntax
+  // for what's clearly meant to be a display block).
+  if (
+    s.startsWith("$") &&
+    s.endsWith("$") &&
+    !s.startsWith("$$") &&
+    !s.endsWith("$$")
+  ) {
+    s = s.slice(1, -1).trim();
+    if (s.length === 0) return null;
+  }
+  // Step 4: wrap in $$ ... $$ on its own lines so remark-math definitely
+  // treats it as a display block.
+  return `$$\n${s}\n$$`;
 }
 
 /**

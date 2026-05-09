@@ -42,12 +42,12 @@ export const MODELS: ModelDef[] = [
     contextWindow: 128_000,
   },
   {
-    id: "google/gemini-2.5-pro",
-    label: "Gemini 2.5 Pro",
+    id: "~google/gemini-flash-latest",
+    label: "Google Gemini Flash",
     provider: "Google",
     supportsImages: true,
     supportsPDF: true,
-    contextWindow: 2_000_000,
+    contextWindow: 1_048_576,
   },
 ];
 

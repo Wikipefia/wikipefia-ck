@@ -6,6 +6,7 @@
   "exports": {
     "./types": "./src/types/index.ts",
     "./tools": "./src/tools/index.ts",
+    "./modes": "./src/modes/index.ts",
     "./react": "./src/react/index.ts",
     "./convex-transport": "./src/convex-transport/index.ts"
   },

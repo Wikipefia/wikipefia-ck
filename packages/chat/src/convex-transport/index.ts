@@ -105,13 +105,21 @@ export function useConvexChatTransport({
         );
       },
 
-      async createThread({ initialMessage, attachments, modelId }) {
+      async createThread({
+        initialMessage,
+        attachments,
+        modelId,
+        mode,
+        modeSettings,
+      }) {
         if (!userId) throw new Error("Session not ready");
         return await mCreateThread({
           userId,
           initialMessage,
           attachments,
           modelId,
+          ...(mode ? { mode } : {}),
+          ...(modeSettings ? { modeSettings } : {}),
         });
       },
 
@@ -142,10 +150,24 @@ export function useConvexChatTransport({
           // Inject the threadId we know from the caller so downstream
           // widgets (e.g. QuestionBox) that need the thread anchor can
           // read it off `message.threadId`.
+          //
+          // We also filter out internal Phase-C retry messages here. They
+          // exist in the agent's persisted history (so the LLM sees them
+          // as a context reminder) but should never appear in the chat UI.
+          //
+          // Then dedupe phantom empty assistant messages: during the brief
+          // window when the Phase-C recovery transitions from runAgent #1
+          // (which finalized its message) to runAgent #2 (which created a
+          // new pending stub), `useUIMessages` can return BOTH the prior
+          // orphaned stream entry AND the new pending stub — each rendering
+          // an empty bubble with a TypingIndicator. We collapse all empty
+          // assistant messages down to just the latest one so the user sees
+          // exactly one "model is typing" state.
+          const converted = (results ?? [])
+            .filter((m) => !isInternalPhaseCRetry(m))
+            .map((m) => convertUIMessage(m, threadId ?? ""));
           return {
-            messages: (results ?? []).map((m) =>
-              convertUIMessage(m, threadId ?? ""),
-            ),
+            messages: dedupeEmptyAssistantMessages(converted),
             status: uiStatus,
             loadMore:
               status === "CanLoadMore" ? () => loadMore(20) : undefined,
@@ -301,6 +323,85 @@ export { optimisticallySendMessage };
 // Conversion helpers (unchanged)
 // ────────────────────────────────────────────────────────
 
+/**
+ * Marker prefix used by the backend Phase-C-retry recovery (in
+ * `convex/convex/chat/agent_action.ts`). Internal reminder messages
+ * persisted to the agent's thread for context purposes start with this
+ * marker so we can hide them from the chat UI without deleting them.
+ *
+ * MUST stay in sync with `PHASE_C_RETRY_MARKER` on the backend.
+ */
+const PHASE_C_RETRY_MARKER = "__WIKIPEFIA_INTERNAL_PHASE_C_RETRY__";
+
+/**
+ * Returns true when the message is one of our internal Phase-C reminder
+ * injections. Those messages have role "user" (so the LLM treats them
+ * as instructions on the next turn) but should never render in the UI.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function isInternalPhaseCRetry(m: any): boolean {
+  if (!m || typeof m !== "object") return false;
+  if (m.role !== "user") return false;
+  const parts = Array.isArray(m.parts) ? m.parts : [];
+  for (const p of parts) {
+    if (p?.type === "text" && typeof p.text === "string") {
+      if (p.text.startsWith(PHASE_C_RETRY_MARKER)) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Returns true when an assistant message has no user-visible content yet
+ * — used to detect phantom typing-indicator messages that should be
+ * collapsed during pre-stream-delta states. We treat a message as "empty"
+ * if every part either: doesn't render visible content, OR is an empty
+ * text/reasoning string. Tool-calls and files are NEVER considered empty
+ * because their existence alone produces visible UI.
+ */
+function isEmptyAssistantMessage(m: ChatMessage): boolean {
+  if (m.role !== "assistant") return false;
+  if (m.parts.length === 0) return true;
+  for (const p of m.parts) {
+    if (p.type === "text" || p.type === "reasoning") {
+      if (p.text.trim().length > 0) return false;
+    } else {
+      // tool-call, tool-result, file, etc. — message has visible content.
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Collapse phantom empty assistant messages down to just the latest one.
+ * During the brief transition window where one stream is finalizing while
+ * the next is starting, `useUIMessages` can return multiple empty
+ * assistant entries — each renders an empty bubble with a TypingIndicator.
+ * We keep only the most recent so the UI shows exactly one "typing" state.
+ *
+ * Non-empty assistant messages are always preserved. User messages are
+ * always preserved.
+ */
+function dedupeEmptyAssistantMessages(msgs: ChatMessage[]): ChatMessage[] {
+  // Find the index of the LAST empty assistant message (if any).
+  let lastEmptyIdx = -1;
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    if (isEmptyAssistantMessage(msgs[i])) {
+      lastEmptyIdx = i;
+      break;
+    }
+  }
+  if (lastEmptyIdx === -1) return msgs;
+  // Build the result, dropping any earlier empty assistant messages.
+  const out: ChatMessage[] = [];
+  for (let i = 0; i < msgs.length; i++) {
+    if (i !== lastEmptyIdx && isEmptyAssistantMessage(msgs[i])) continue;
+    out.push(msgs[i]);
+  }
+  return out;
+}
+
 interface ConvexThreadDoc {
   _id: string;
   threadId: string;
@@ -308,6 +409,9 @@ interface ConvexThreadDoc {
   status?: string;
   modelId?: string;
   systemPromptVersion?: string;
+  mode?: string;
+  modeSettings?: Record<string, unknown>;
+  modePromptVersion?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -319,6 +423,9 @@ function convertThread(t: ConvexThreadDoc): Thread {
     status: (t.status as ThreadStatus) ?? "idle",
     modelId: t.modelId ?? "",
     systemPromptVersion: t.systemPromptVersion ?? "v1",
+    ...(t.mode ? { mode: t.mode } : {}),
+    ...(t.modeSettings ? { modeSettings: t.modeSettings } : {}),
+    ...(t.modePromptVersion ? { modePromptVersion: t.modePromptVersion } : {}),
     createdAt: t.createdAt,
     updatedAt: t.updatedAt,
   };

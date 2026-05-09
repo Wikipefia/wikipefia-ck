@@ -6,8 +6,9 @@ import { z } from "zod";
 import {
   buildWidgetTools,
   WIDGET_DOCS,
-  SYSTEM_PROMPT_V1,
+  widgetCatalogLines,
 } from "@wikipefia/chat/tools";
+import { applyDefaults, getMode } from "@wikipefia/chat/modes";
 import { components, internal } from "../_generated/api";
 
 const openrouter = createOpenRouter({
@@ -74,6 +75,157 @@ const quizTool = createTool({
     // Only runs after the user has submitted answers via the approval flow.
     return { acknowledged: true };
   },
+});
+
+/**
+ * AskUserQuestion — single comprehension question with three variants
+ * driven by a `type` discriminator:
+ *   - multiple_choice: provide `options` (one with `correct: true`)
+ *   - numeric: provide `expectedValue` (and optional `tolerance` / `unit`)
+ *   - free_text: provide `expectedKeyPoints` (and optional `minWords`)
+ *
+ * INTERACTIVE — pauses generation; user submits via the same approval flow
+ * Quiz uses (`submitToolResponse`). On its next step the model receives the
+ * user's payload as a tool-result and is responsible for evaluating it.
+ *
+ * SCHEMA SHAPE NOTE: we flatten the schema into a single z.object instead
+ * of using z.discriminatedUnion. Azure / OpenAI strict-mode adapters
+ * require `type: "object"` at the JSON-Schema root and don't accept the
+ * `anyOf` form that discriminated unions produce. The flat shape achieves
+ * the same intent — the model fills only the fields relevant to its
+ * chosen `type` — at the cost of leaving validation of "right fields for
+ * right type" to the prompt rather than the schema. Dead-letter validation
+ * happens in the runtime UI, which already handles missing fields
+ * gracefully.
+ */
+const askUserQuestionTool = createTool({
+  description: [
+    "INTERACTIVE single comprehension question. Pauses generation; the user",
+    "answers; on your next step you'll receive their answer as a tool result",
+    "and you MUST evaluate it (correct? misconception?). Use ONE question at",
+    "a time.",
+    "",
+    "Pick the variant via the `type` field, then fill the fields relevant",
+    "to that variant. Leave irrelevant fields out.",
+    "",
+    "- type=\"multiple_choice\": fill `options` (2-6 items, exactly one",
+    "  marked `correct: true`).",
+    "- type=\"numeric\": fill `expectedValue` (and optional `tolerance` and",
+    "  `unit`).",
+    "- type=\"free_text\": fill `expectedKeyPoints` (1+ short phrases that",
+    "  should be present semantically) and optional `minWords`.",
+    "",
+    "CRITICAL: `context` is a SHORT problem-setup for the CURRENT question",
+    "(1-2 sentences max — e.g. 'Let X be the number of defective items').",
+    "It is NOT for feedback on a previous answer, NOT for re-explaining",
+    "what you just taught, and NOT for transition prose like 'let's check",
+    "your understanding'. Feedback on prior answers MUST be written as",
+    "ordinary prose BEFORE this tool call, not stuffed into `context`.",
+  ].join("\n"),
+  inputSchema: z.object({
+    type: z
+      .enum(["multiple_choice", "numeric", "free_text"])
+      .describe(
+        "Question variant. Determines which other fields you must fill.",
+      ),
+    prompt: z
+      .string()
+      .min(2)
+      .describe("Question text; markdown + $LaTeX$ supported."),
+    context: z
+      .string()
+      .optional()
+      .describe(
+        "Optional SHORT problem-setup for THIS question (1-2 sentences, e.g. 'Let X be the number of defective items in 3'). DO NOT use for feedback on a prior answer or for re-explaining the chunk — write that as prose before the tool call.",
+      ),
+    // multiple_choice fields
+    options: z
+      .array(
+        z.object({
+          value: z.string(),
+          correct: z.boolean(),
+          explanation: z.string().optional(),
+        }),
+      )
+      .min(2)
+      .max(6)
+      .optional()
+      .describe(
+        "REQUIRED when type=\"multiple_choice\". 2-6 options, exactly one with `correct: true`.",
+      ),
+    // numeric fields
+    expectedValue: z
+      .number()
+      .optional()
+      .describe(
+        "REQUIRED when type=\"numeric\". The expected numeric answer.",
+      ),
+    tolerance: z
+      .number()
+      .min(0)
+      .optional()
+      .describe(
+        "Optional absolute tolerance for numeric answers (e.g. 0.05 accepts ±0.05). Defaults to 0 (exact match).",
+      ),
+    unit: z
+      .string()
+      .optional()
+      .describe(
+        "Optional unit shown next to the input for numeric questions (e.g. 'м/с', 'kg').",
+      ),
+    // free_text fields
+    expectedKeyPoints: z
+      .array(z.string())
+      .min(1)
+      .optional()
+      .describe(
+        "REQUIRED when type=\"free_text\". Short phrases that should appear (semantically) in a correct answer. Use to evaluate generously — partial credit is OK.",
+      ),
+    minWords: z
+      .number()
+      .int()
+      .min(1)
+      .optional()
+      .describe(
+        "Optional minimum word count for free_text answers, to nudge users to write a real explanation.",
+      ),
+  }),
+  needsApproval: () => true,
+  execute: async () => ({ acknowledged: true }),
+});
+
+/**
+ * NextTopicButton — interactive "proceed to next topic" affordance. Used by
+ * tutor mode when `autoAdvance=off` after the user has demonstrated
+ * understanding of the current chunk. Pauses generation until the user
+ * either clicks "continue" or asks a clarifying question.
+ *
+ * The user-submitted payload is one of:
+ *   - { action: "continue" }
+ *   - { action: "ask", question: string }
+ *
+ * The model is instructed (via the auto-advance-off prompt fragment) on
+ * how to handle each branch.
+ */
+const nextTopicButtonTool = createTool({
+  description:
+    "INTERACTIVE 'proceed to next topic' affordance for tutor mode (autoAdvance=off). Pauses generation. The user clicks either 'continue' or 'I have a question'. You'll receive { action: 'continue' } or { action: 'ask', question: string } as a tool result. Only emit AFTER the user has demonstrated understanding of the current chunk.",
+  inputSchema: z.object({
+    currentTopicSummary: z
+      .string()
+      .min(2)
+      .describe(
+        "One short sentence summarizing what was just covered, in the user's language. e.g. 'Разобрали определение производной по Ньютону.'",
+      ),
+    nextTopicHint: z
+      .string()
+      .min(2)
+      .describe(
+        "Short label (3–8 words, user's language) previewing what comes next. e.g. 'Геометрический смысл производной'.",
+      ),
+  }),
+  needsApproval: () => true,
+  execute: async () => ({ acknowledged: true }),
 });
 
 /**
@@ -154,12 +306,19 @@ const lookupWidgetDocs = createTool({
 
 /**
  * Build the full tool registry. We register ALL widget tools but the agent
- * only sees a subset (CORE_TIER + unlocked + lookupWidgetDocs) per step
- * via prepareStep passed to streamText (see agent_action.ts).
+ * only sees a subset (CORE_TIER + unlocked + lookupWidgetDocs + mode
+ * whitelist) per step via prepareStep passed to streamText (see
+ * agent_action.ts → prepareStep, which consumes mode.allowedTools).
+ *
+ * Tutor-mode-only tools (AskUserQuestion, NextTopicButton) are registered
+ * here too — they're available to ALL agents at construction time but
+ * only become callable when the thread's mode whitelists them.
  */
 export const ALL_TOOLS = {
   ...buildWidgetTools(),
   Quiz: quizTool,
+  AskUserQuestion: askUserQuestionTool,
+  NextTopicButton: nextTopicButtonTool,
   QuestionBox: questionBoxTool,
   lookupWidgetDocs,
 };
@@ -236,34 +395,48 @@ const enrichQuestionBoxResults = async (ctx: any, args: any) => {
 };
 
 /**
- * Default Agent instance. The model is overridable per-thread via
- * getAgentForModel below.
+ * Build a per-thread agent based on the thread's `meta` snapshot.
+ *
+ * The agent's `instructions` are resolved by the thread's mode (see
+ * `@wikipefia/chat/modes`). Mode + settings + model are all locked at
+ * thread creation time and persisted in `threadMeta`, so this factory
+ * is deterministic — same `meta` ⇒ same Agent shape.
+ *
+ * `tools` is the universal `ALL_TOOLS` registry (every tool the app knows
+ * about). The mode's `allowedTools` is applied per-step inside
+ * `agent_action.ts → prepareStep`, NOT here — AI SDK only respects
+ * activeTools per-step, not at Agent construction.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const tutorAgent: any = new Agent(components.agent, {
-  name: "Wikipefia Tutor",
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  languageModel: openrouter("anthropic/claude-sonnet-4.5") as any,
-  instructions: SYSTEM_PROMPT_V1,
-  tools: ALL_TOOLS,
-  stopWhen: stepCountIs(8),
-  contextHandler: enrichQuestionBoxResults,
-});
+export interface AgentMetaShape {
+  modelId: string;
+  mode?: string;
+  modeSettings?: Record<string, unknown> | null;
+}
 
-/**
- * Build a per-thread agent bound to a specific OpenRouter model id.
- * Each thread locks its model at creation; we materialize the right Agent
- * here so streamText runs against the chosen LLM.
- */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function getAgentForModel(modelId: string): any {
+export function getAgentForThread(meta: AgentMetaShape): any {
+  const mode = getMode(meta.mode);
+  const settings = applyDefaults(mode, meta.modeSettings ?? null);
+  const instructions = mode.buildSystemPrompt({
+    settings,
+    widgetCatalog: widgetCatalogLines(),
+  });
   return new Agent(components.agent, {
-    name: "Wikipefia Tutor",
+    name: `Wikipefia Tutor (${mode.id})`,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    languageModel: openrouter(modelId) as any,
-    instructions: SYSTEM_PROMPT_V1,
+    languageModel: openrouter(meta.modelId) as any,
+    instructions,
     tools: ALL_TOOLS,
     stopWhen: stepCountIs(8),
     contextHandler: enrichQuestionBoxResults,
   });
 }
+
+/**
+ * Default Agent instance — preserved for any callers that don't have a
+ * full thread meta (e.g. test scaffolding). Uses default mode.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const tutorAgent: any = getAgentForThread({
+  modelId: "anthropic/claude-sonnet-4.5",
+});

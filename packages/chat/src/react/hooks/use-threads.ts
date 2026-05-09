@@ -25,11 +25,15 @@ export function useCreateThread() {
       initialMessage: string,
       attachments: AttachmentRef[] = [],
       modelId?: string,
+      mode?: { id: string; settings: Record<string, unknown> },
     ) => {
       return await transport.createThread({
         initialMessage,
         attachments,
         modelId: modelId ?? defaultModel.id,
+        ...(mode && mode.id !== "default"
+          ? { mode: mode.id, modeSettings: mode.settings }
+          : {}),
       });
     },
     [transport, defaultModel],
