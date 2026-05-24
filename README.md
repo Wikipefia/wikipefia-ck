@@ -16,7 +16,6 @@ packages/
   mdx-compiler/ Shared MDX compiler/validator
   eslint-config/
   typescript-config/
-  ui/
 ```
 
 ## Apps
@@ -92,8 +91,7 @@ pnpm convex:codegen
 Set chat model credentials in Convex:
 
 ```bash
-cd convex
-npx convex env set OPENROUTER_API_KEY sk-or-...
+pnpm exec convex env set OPENROUTER_API_KEY sk-or-...
 ```
 
 ## Packages
@@ -188,7 +186,6 @@ Common local env files:
 
 - `.env.local`
 - `apps/*/.env.local`
-- `convex/.env.local`
 
 ## Content Build
 

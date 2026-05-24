@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       convex:
-        specifier: ^1.33.1
-        version: 1.33.1(react@19.2.3)
+        specifier: ^1.39.1
+        version: 1.39.1(react@19.2.3)
     devDependencies:
       prettier:
         specifier: ^3.7.4
@@ -26,7 +26,7 @@ importers:
     dependencies:
       '@convex-dev/agent':
         specifier: ^0.6.1
-        version: 0.6.1(@ai-sdk/provider-utils@4.0.25(zod@3.25.76))(ai@6.0.172(zod@3.25.76))(convex-helpers@0.1.115(@standard-schema/spec@1.1.0)(convex@1.33.1(react@19.2.3))(react@19.2.3)(typescript@5.9.2)(zod@3.25.76))(convex@1.33.1(react@19.2.3))(react@19.2.3)
+        version: 0.6.1(@ai-sdk/provider-utils@4.0.25(zod@3.25.76))(ai@6.0.172(zod@3.25.76))(convex-helpers@0.1.115(@standard-schema/spec@1.1.0)(convex@1.39.1(react@19.2.3))(react@19.2.3)(typescript@5.9.2)(zod@3.25.76))(convex@1.39.1(react@19.2.3))(react@19.2.3)
       '@next/env':
         specifier: ^16.2.4
         version: 16.2.4
@@ -46,8 +46,8 @@ importers:
         specifier: ^6.0.35
         version: 6.0.172(zod@3.25.76)
       convex:
-        specifier: ^1.33.1
-        version: 1.33.1(react@19.2.3)
+        specifier: ^1.39.1
+        version: 1.39.1(react@19.2.3)
       framer-motion:
         specifier: ^12.33.0
         version: 12.36.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -225,8 +225,8 @@ importers:
         specifier: ^6
         version: 6.0.2
       convex:
-        specifier: ^1.33.1
-        version: 1.33.1(react@19.2.3)
+        specifier: ^1.39.1
+        version: 1.39.1(react@19.2.3)
       katex:
         specifier: ^0.16.28
         version: 0.16.38
@@ -272,7 +272,7 @@ importers:
     dependencies:
       '@convex-dev/agent':
         specifier: ^0.6.1
-        version: 0.6.1(@ai-sdk/provider-utils@4.0.25(zod@3.25.76))(ai@6.0.172(zod@3.25.76))(convex-helpers@0.1.115(@standard-schema/spec@1.1.0)(convex@1.33.1(react@19.2.3))(react@19.2.3)(typescript@5.9.2)(zod@3.25.76))(convex@1.33.1(react@19.2.3))(react@19.2.3)
+        version: 0.6.1(@ai-sdk/provider-utils@4.0.25(zod@3.25.76))(ai@6.0.172(zod@3.25.76))(convex-helpers@0.1.115(@standard-schema/spec@1.1.0)(convex@1.39.1(react@19.2.3))(react@19.2.3)(typescript@5.9.2)(zod@3.25.76))(convex@1.39.1(react@19.2.3))(react@19.2.3)
       '@openrouter/ai-sdk-provider':
         specifier: ^2.9.0
         version: 2.9.0(ai@6.0.172(zod@3.25.76))(zod@3.25.76)
@@ -283,11 +283,11 @@ importers:
         specifier: ^6.0.35
         version: 6.0.172(zod@3.25.76)
       convex:
-        specifier: ^1.33.1
-        version: 1.33.1(react@19.2.3)
+        specifier: ^1.39.1
+        version: 1.39.1(react@19.2.3)
       convex-helpers:
         specifier: ^0.1.103
-        version: 0.1.115(@standard-schema/spec@1.1.0)(convex@1.33.1(react@19.2.3))(react@19.2.3)(typescript@5.9.2)(zod@3.25.76)
+        version: 0.1.115(@standard-schema/spec@1.1.0)(convex@1.39.1(react@19.2.3))(react@19.2.3)(typescript@5.9.2)(zod@3.25.76)
       zod:
         specifier: ^3.25.76
         version: 3.25.76
@@ -303,7 +303,7 @@ importers:
     dependencies:
       '@convex-dev/agent':
         specifier: ^0.6.1
-        version: 0.6.1(@ai-sdk/provider-utils@4.0.25(zod@3.25.76))(ai@6.0.172(zod@3.25.76))(convex-helpers@0.1.115(@standard-schema/spec@1.1.0)(convex@1.33.1(react@19.2.3))(react@19.2.3)(typescript@5.9.2)(zod@3.25.76))(convex@1.33.1(react@19.2.3))(react@19.2.3)
+        version: 0.6.1(@ai-sdk/provider-utils@4.0.25(zod@3.25.76))(ai@6.0.172(zod@3.25.76))(convex-helpers@0.1.115(@standard-schema/spec@1.1.0)(convex@1.39.1(react@19.2.3))(react@19.2.3)(typescript@5.9.2)(zod@3.25.76))(convex@1.39.1(react@19.2.3))(react@19.2.3)
       '@wikipefia/mdx-renderer':
         specifier: workspace:*
         version: link:../mdx-renderer
@@ -311,8 +311,8 @@ importers:
         specifier: ^6.0.35
         version: 6.0.172(zod@3.25.76)
       convex:
-        specifier: ^1.33.1
-        version: 1.33.1(react@19.2.3)
+        specifier: ^1.39.1
+        version: 1.39.1(react@19.2.3)
       framer-motion:
         specifier: ^12.33.0
         version: 12.36.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -462,37 +462,6 @@ importers:
         version: 5.9.2
 
   packages/typescript-config: {}
-
-  packages/ui:
-    dependencies:
-      react:
-        specifier: ^19.2.0
-        version: 19.2.3
-      react-dom:
-        specifier: ^19.2.0
-        version: 19.2.3(react@19.2.3)
-    devDependencies:
-      '@repo/eslint-config':
-        specifier: workspace:*
-        version: link:../eslint-config
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../typescript-config
-      '@types/node':
-        specifier: ^22.15.3
-        version: 22.19.15
-      '@types/react':
-        specifier: 19.2.2
-        version: 19.2.2
-      '@types/react-dom':
-        specifier: 19.2.2
-        version: 19.2.2(@types/react@19.2.2)
-      eslint:
-        specifier: ^9.39.1
-        version: 9.39.4(jiti@2.6.1)
-      typescript:
-        specifier: 5.9.2
-        version: 5.9.2
 
 packages:
 
@@ -2146,18 +2115,21 @@ packages:
       zod:
         optional: true
 
-  convex@1.33.1:
-    resolution: {integrity: sha512-mRhR1XqZPLhgJsUepecM/kOgQVRCWKJtHHtyEX/XYY4zmzfItG0D1GNh5fjNEkuO5+72X4PCkzbEFA6327rxog==}
+  convex@1.39.1:
+    resolution: {integrity: sha512-W+gVXA7BpRF1xLlS1kGTtKVaqd5yonqbGESKiPtIUXjV744GdDz8IG7RVsSY5KzHbgxuJBHKaJYk+92OIHTskQ==}
     engines: {node: '>=18.0.0', npm: '>=7.0.0'}
     hasBin: true
     peerDependencies:
       '@auth0/auth0-react': ^2.0.1
       '@clerk/clerk-react': ^4.12.8 || ^5.0.0
+      '@clerk/react': ^6.4.3
       react: ^18.0.0 || ^19.0.0-0 || ^19.0.0
     peerDependenciesMeta:
       '@auth0/auth0-react':
         optional: true
       '@clerk/clerk-react':
+        optional: true
+      '@clerk/react':
         optional: true
       react:
         optional: true
@@ -4355,12 +4327,12 @@ snapshots:
       style-mod: 4.1.3
       w3c-keyname: 2.2.8
 
-  '@convex-dev/agent@0.6.1(@ai-sdk/provider-utils@4.0.25(zod@3.25.76))(ai@6.0.172(zod@3.25.76))(convex-helpers@0.1.115(@standard-schema/spec@1.1.0)(convex@1.33.1(react@19.2.3))(react@19.2.3)(typescript@5.9.2)(zod@3.25.76))(convex@1.33.1(react@19.2.3))(react@19.2.3)':
+  '@convex-dev/agent@0.6.1(@ai-sdk/provider-utils@4.0.25(zod@3.25.76))(ai@6.0.172(zod@3.25.76))(convex-helpers@0.1.115(@standard-schema/spec@1.1.0)(convex@1.39.1(react@19.2.3))(react@19.2.3)(typescript@5.9.2)(zod@3.25.76))(convex@1.39.1(react@19.2.3))(react@19.2.3)':
     dependencies:
       '@ai-sdk/provider-utils': 4.0.25(zod@3.25.76)
       ai: 6.0.172(zod@3.25.76)
-      convex: 1.33.1(react@19.2.3)
-      convex-helpers: 0.1.115(@standard-schema/spec@1.1.0)(convex@1.33.1(react@19.2.3))(react@19.2.3)(typescript@5.9.2)(zod@3.25.76)
+      convex: 1.39.1(react@19.2.3)
+      convex-helpers: 0.1.115(@standard-schema/spec@1.1.0)(convex@1.39.1(react@19.2.3))(react@19.2.3)(typescript@5.9.2)(zod@3.25.76)
     optionalDependencies:
       '@ungap/structured-clone': 1.3.0
       react: 19.2.3
@@ -5578,16 +5550,16 @@ snapshots:
 
   convert-source-map@2.0.0: {}
 
-  convex-helpers@0.1.115(@standard-schema/spec@1.1.0)(convex@1.33.1(react@19.2.3))(react@19.2.3)(typescript@5.9.2)(zod@3.25.76):
+  convex-helpers@0.1.115(@standard-schema/spec@1.1.0)(convex@1.39.1(react@19.2.3))(react@19.2.3)(typescript@5.9.2)(zod@3.25.76):
     dependencies:
-      convex: 1.33.1(react@19.2.3)
+      convex: 1.39.1(react@19.2.3)
     optionalDependencies:
       '@standard-schema/spec': 1.1.0
       react: 19.2.3
       typescript: 5.9.2
       zod: 3.25.76
 
-  convex@1.33.1(react@19.2.3):
+  convex@1.39.1(react@19.2.3):
     dependencies:
       esbuild: 0.27.0
       prettier: 3.8.1

@@ -92,7 +92,7 @@ export type ThreadStatus =
 
 /**
  * One topic in a tutor-mode plan. Mirrors the server-side shape stored
- * in `threadMeta.topicPlan` (see convex/convex/schema.ts).
+ * in `threadMeta.topicPlan` (see convex/schema.ts).
  */
 export interface TutorTopic {
   id: string;

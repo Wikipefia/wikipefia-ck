@@ -334,7 +334,7 @@ export { optimisticallySendMessage };
 
 /**
  * Marker prefixes used by the backend retry-recovery logic (in
- * `convex/convex/chat/agent_action.ts`). Internal reminder messages
+ * `convex/chat/agent_action.ts`). Internal reminder messages
  * persisted to the agent's thread start with one of these markers so
  * we can hide them from the chat UI without deleting them.
  *

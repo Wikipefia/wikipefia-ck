@@ -1,5 +1,5 @@
 {
-  "functions": "convex/convex/",
+  "functions": "convex/",
   "node": {
     "externalPackages": ["*"]
   }

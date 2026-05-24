@@ -3,19 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "npx convex dev",
-    "dev:bootstrap": "npx convex dev --typecheck=disable",
+    "dev": "cd .. && pnpm exec convex dev --env-file .env.local",
+    "dev:bootstrap": "cd .. && pnpm exec convex dev --env-file .env.local --once --typecheck=disable",
     "check-types": "tsc --noEmit"
   },
   "exports": {
-    "./api": "./convex/_generated/api.js"
+    "./api": "./_generated/api.js"
   },
   "dependencies": {
     "@convex-dev/agent": "^0.6.1",
     "@openrouter/ai-sdk-provider": "^2.9.0",
     "@wikipefia/chat": "workspace:*",
     "ai": "^6.0.35",
-    "convex": "^1.33.1",
+    "convex": "^1.39.1",
     "convex-helpers": "^0.1.103",
     "zod": "^3.25.76"
   },

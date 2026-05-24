@@ -6,7 +6,7 @@ AI tutor app built on top of `@wikipefia/chat` — a reusable chat module — an
 
 - **`@wikipefia/chat`** — UI components, hooks, types, widget→tool generation. Reusable in studio.
 - **`apps/chat`** (this app) — Next.js 16, port 1488. Wires the chat package to Convex backend, configures models, system prompt, theming.
-- **`/convex/convex/`** — Backend: schema, queries/mutations, agent action that calls OpenRouter via Vercel AI SDK in agent mode with tool-call streaming through `@convex-dev/agent`.
+- **`/convex/`** — Backend: schema, queries/mutations, agent action that calls OpenRouter via Vercel AI SDK in agent mode with tool-call streaming through `@convex-dev/agent`.
 
 Each thread runs entirely on the Convex server. The client subscribes via Convex sync (`useUIMessages`) — no direct HTTP streaming. Closing a tab does NOT stop generation; multiple threads run concurrently.
 
@@ -37,7 +37,7 @@ Each thread runs entirely on the Convex server. The client subscribes via Convex
 
 4. Set the OpenRouter API key in your Convex deployment:
    ```bash
-   cd convex && npx convex env set OPENROUTER_API_KEY sk-or-...
+   pnpm exec convex env set OPENROUTER_API_KEY sk-or-...
    ```
 
 5. Run the app:

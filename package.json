@@ -4,9 +4,9 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
-    "convex:dev": "convex dev",
-    "convex:bootstrap": "convex dev --once --typecheck=disable",
-    "convex:deploy": "convex deploy",
+    "convex:dev": "convex dev --env-file .env.local",
+    "convex:bootstrap": "convex dev --env-file .env.local --once --typecheck=disable",
+    "convex:deploy": "convex deploy --env-file .env.local",
     "convex:codegen": "convex codegen",
     "convex:env": "convex env set --from-file .env.local --force",
     "lint": "turbo run lint",
@@ -23,6 +23,6 @@
     "node": ">=18"
   },
   "dependencies": {
-    "convex": "^1.33.1"
+    "convex": "^1.39.1"
   }
 }
