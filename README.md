@@ -1,135 +1,202 @@
-# Turborepo starter
+# Wikipefia Monorepo
 
-This Turborepo starter is maintained by the Turborepo core team.
+Monorepo for Wikipefia apps, shared packages, and Convex backend.
 
-## Using this example
+## Structure
 
-Run the following command:
-
-```sh
-npx create-turbo@latest
+```txt
+apps/
+  portal/       Public portal
+  studio/       Content editing tool
+  chat/         AI tutor chat
+convex/         Convex backend
+packages/
+  chat/         Reusable chat module
+  mdx-renderer/ Shared MDX renderer/components
+  mdx-compiler/ Shared MDX compiler/validator
+  eslint-config/
+  typescript-config/
+  ui/
 ```
 
-## What's inside?
+## Apps
 
-This Turborepo includes the following packages/apps:
+### `apps/portal`
 
-### Apps and Packages
+Main public portal.
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+- Next.js app, port `2288`
+- renders compiled MDX content
+- supports localized content/routes
+- pulls content sources from `apps/portal/content-sources.json`
+- generates compiled content, route maps, and search indexes during build
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build
-yarn dlx turbo build
-pnpm exec turbo build
+```bash
+pnpm --filter portal dev
+pnpm --filter portal build:local
+pnpm --filter portal content:pull
+pnpm --filter portal content:compile
+pnpm --filter portal content:validate
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+### `apps/studio`
 
-```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build --filter=docs
+Content editing tool for subject/system/teacher content.
 
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-```
+- Next.js app, port `1986`
+- MDX editor with live preview
+- uses shared MDX compiler and renderer
+- uses Convex for app state
 
-### Develop
-
-To develop all apps and packages, run the following command:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev
-yarn exec turbo dev
-pnpm exec turbo dev
+```bash
+pnpm --filter studio dev
+pnpm --filter studio build
+pnpm --filter studio lint
+pnpm --filter studio format
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+### `apps/chat`
 
-```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev --filter=web
+AI tutor chat app.
 
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
+- Next.js app, port `1488`
+- uses `@wikipefia/chat`
+- stores chat state in Convex
+- uses OpenRouter through Convex actions
 
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo login
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo login
-yarn exec turbo login
-pnpm exec turbo login
+```bash
+pnpm --filter chat dev
+pnpm --filter chat check-types
+pnpm --filter chat build
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+More details: `apps/chat/README.md`.
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
+## Backend
 
+### `convex`
+
+Shared Convex backend.
+
+- exports generated API as `@wikipefia/convex/api`
+- contains project functions for Studio
+- contains chat threads/messages/files and agent actions for Chat
+
+```bash
+pnpm convex:bootstrap  # first setup
+pnpm convex:dev        # local dev
+pnpm convex:deploy
+pnpm convex:codegen
 ```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo link
 
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo link
-yarn exec turbo link
-pnpm exec turbo link
+Set chat model credentials in Convex:
+
+```bash
+cd convex
+npx convex env set OPENROUTER_API_KEY sk-or-...
 ```
 
-## Useful Links
+## Packages
 
-Learn more about the power of Turborepo:
+### `@wikipefia/mdx-renderer`
 
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+Shared MDX rendering package.
+
+- component registry
+- MDX components
+- typography helpers
+- theme tokens
+- component labels/metadata
+
+Used by Portal, Studio previews, and Chat widgets.
+
+### `@wikipefia/mdx-compiler`
+
+Shared MDX compiler and validator.
+
+- content schemas
+- MDX validation
+- MDX compilation
+- component contract checks
+- `wikipefia-mdx` CLI
+
+Used by Portal content builds and Studio.
+
+### `@wikipefia/chat`
+
+Reusable chat package.
+
+- React chat UI
+- hooks
+- modes and prompt fragments
+- widget/tool helpers
+- Convex transport
+
+Used by `apps/chat` and Convex chat actions.
+
+### Tooling
+
+- `@repo/eslint-config` - shared ESLint config
+- `@repo/typescript-config` - shared TypeScript config
+- `@repo/ui` - shared UI placeholder/package
+
+## Local Setup
+
+```bash
+pnpm install
+```
+
+Run everything:
+
+```bash
+pnpm dev
+```
+
+Run one app:
+
+```bash
+pnpm --filter portal dev
+pnpm --filter studio dev
+pnpm --filter chat dev
+```
+
+Ports:
+
+| App | URL |
+| --- | --- |
+| Portal | `http://localhost:2288` |
+| Studio | `http://localhost:1986` |
+| Chat | `http://localhost:1488` |
+
+## Root Commands
+
+```bash
+pnpm build
+pnpm lint
+pnpm check-types
+pnpm format
+pnpm convex:dev
+```
+
+## Env Vars
+
+| Var | Used by | Notes |
+| --- | --- | --- |
+| `NEXT_PUBLIC_CONVEX_URL` | Studio, Chat | Convex deployment URL |
+| `OPENROUTER_API_KEY` | Convex | Set with `npx convex env set` |
+
+Common local env files:
+
+- `.env.local`
+- `apps/*/.env.local`
+- `convex/.env.local`
+
+## Content Build
+
+Portal content is generated from external content repos:
+
+1. `content:pull` pulls repos from `apps/portal/content-sources.json`
+2. `content:compile` validates and compiles MDX
+3. output goes to `apps/portal/.content-build`
+
+Generated content/build folders are not source of truth.

@@ -21,7 +21,7 @@ import { ModeSettingsPanel } from "./ModeSettingsPanel";
  * When provided, MessageInput shows a "+" trigger that opens a mode-picker
  * dropdown. Selecting a non-default mode reveals an inline settings panel.
  *
- * Used on the new-thread composer (apps/wikipefia-chat/app/page.tsx).
+ * Used on the new-thread composer (apps/chat/app/page.tsx).
  * Inside a thread (`ThreadView`), this prop is intentionally NOT passed —
  * the mode is locked at thread creation time.
  */
