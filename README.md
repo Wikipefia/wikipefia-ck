@@ -138,7 +138,6 @@ Used by `apps/chat` and Convex chat actions.
 
 - `@repo/eslint-config` - shared ESLint config
 - `@repo/typescript-config` - shared TypeScript config
-- `@repo/ui` - shared UI placeholder/package
 
 ## Local Setup
 
