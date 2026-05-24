@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 import { useChatTransport, useDefaultModel } from "../transport-context";
-import type { AttachmentRef } from "../../types";
+import type { AttachmentRef, TutorTopic } from "../../types";
 
 /** Reactive list of the user's threads. */
 export function useThreads() {
@@ -62,6 +62,22 @@ export function useSetThreadModel() {
   return useCallback(
     (threadId: string, modelId: string) =>
       transport.setThreadModel(threadId, modelId),
+    [transport],
+  );
+}
+
+/**
+ * Replace the entire topic plan of a tutor thread. Used by the side
+ * panel for inline edits, deletions, additions, and drag-reorder. The
+ * mutation throws on the server if `tutorPhase` is "teaching" or
+ * "completed" (plan is locked); callers should disable editing UI in
+ * that state.
+ */
+export function useUpdateTopicPlan() {
+  const transport = useChatTransport();
+  return useCallback(
+    (threadId: string, topics: TutorTopic[]) =>
+      transport.updateTopicPlan(threadId, topics),
     [transport],
   );
 }

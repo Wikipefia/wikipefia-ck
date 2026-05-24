@@ -90,6 +90,26 @@ export type ThreadStatus =
   | "awaiting_user"
   | "error";
 
+/**
+ * One topic in a tutor-mode plan. Mirrors the server-side shape stored
+ * in `threadMeta.topicPlan` (see convex/convex/schema.ts).
+ */
+export interface TutorTopic {
+  id: string;
+  title: string;
+  description: string;
+  prompt: string;
+  order: number;
+  status: "pending" | "active" | "completed" | "skipped";
+}
+
+export type TutorPhase =
+  | "input"
+  | "review"
+  | "teaching"
+  | "completed"
+  | (string & {});
+
 export interface Thread {
   id: string;
   title: string;
@@ -102,6 +122,10 @@ export interface Thread {
   modeSettings?: Record<string, unknown>;
   /** Prompt version of the mode at creation time (for replay determinism). */
   modePromptVersion?: string;
+  /** Tutor-mode topic plan (set after Phase 0 PlanTopics is emitted). */
+  topicPlan?: TutorTopic[];
+  /** Tutor-mode session phase. Undefined for non-tutor threads. */
+  tutorPhase?: TutorPhase;
   createdAt: number;
   updatedAt: number;
 }

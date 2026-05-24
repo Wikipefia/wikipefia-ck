@@ -195,6 +195,62 @@ const askUserQuestionTool = createTool({
 });
 
 /**
+ * PlanTopics — tutor-mode Phase 0 planning tool. Required FIRST step in
+ * any tutor session. The model analyzes the user's input (uploaded files,
+ * stated topic, pasted material) and breaks it into an ordered list of
+ * small but detailed sub-topics.
+ *
+ * The list is shown in the right side panel. The user can edit titles /
+ * descriptions / prompts, delete topics, reorder them, add new ones, OR
+ * request a re-plan — all live, while the agent is paused on this tool's
+ * approval.
+ *
+ * When the user clicks "Continue" in the chat-side widget, the approval
+ * is resolved with `{ action: "start" }`. The next runAgent transitions
+ * to teaching mode using the (possibly edited) plan.
+ *
+ * Replan flow: user clicks "Replan" in the side panel; the UI resolves
+ * this approval with `{ action: "replan", instructions?: string }` →
+ * model rebuilds the plan from scratch on the next step.
+ */
+const planTopicsTool = createTool({
+  description:
+    "REQUIRED FIRST STEP for tutor mode. Analyze the user's input (uploaded files, stated topic, pasted material) and break it into an ordered list of small but detailed sub-topics. After emitting this, generation pauses; the user reviews/edits the plan in a side panel, then clicks 'Continue' to start teaching. Do NOT explain content yet — the actual teaching happens topic-by-topic AFTER the user approves the plan.",
+  inputSchema: z.object({
+    topics: z
+      .array(
+        z.object({
+          title: z
+            .string()
+            .min(2)
+            .describe(
+              "Short title (3–7 words) — what the user sees in the side-panel topic list. e.g. 'Определение случайной величины'.",
+            ),
+          description: z
+            .string()
+            .min(10)
+            .describe(
+              "One sentence describing what this topic covers, in the user's language. e.g. 'Определение случайной величины и её отличие от обычной переменной.'",
+            ),
+          prompt: z
+            .string()
+            .min(20)
+            .describe(
+              "Detailed prompt for YOURSELF — what to explain, what examples to give, what depth, what widgets to consider. The user will see this as 'editable instructions for the tutor'. You'll receive it back when starting Phase B for this topic.",
+            ),
+        }),
+      )
+      .min(1)
+      .max(20)
+      .describe(
+        "Ordered list of sub-topics. 5-12 topics is typical for a single document; for a single concept request 1-3 may be enough. Each topic = ONE self-contained learning chunk.",
+      ),
+  }),
+  needsApproval: () => true,
+  execute: async () => ({ acknowledged: true }),
+});
+
+/**
  * NextTopicButton — interactive "proceed to next topic" affordance. Used by
  * tutor mode when `autoAdvance=off` after the user has demonstrated
  * understanding of the current chunk. Pauses generation until the user
@@ -319,6 +375,7 @@ export const ALL_TOOLS = {
   Quiz: quizTool,
   AskUserQuestion: askUserQuestionTool,
   NextTopicButton: nextTopicButtonTool,
+  PlanTopics: planTopicsTool,
   QuestionBox: questionBoxTool,
   lookupWidgetDocs,
 };
@@ -406,20 +463,36 @@ const enrichQuestionBoxResults = async (ctx: any, args: any) => {
  * about). The mode's `allowedTools` is applied per-step inside
  * `agent_action.ts → prepareStep`, NOT here — AI SDK only respects
  * activeTools per-step, not at Agent construction.
+ *
+ * `threadState` carries dynamic per-thread state (the topic plan in tutor
+ * mode, e.g.) which the mode's `buildSystemPrompt` may use to inject
+ * runtime info (current topic, phase, etc.). Rebuilt every runAgent so
+ * the prompt is always up-to-date.
  */
 export interface AgentMetaShape {
   modelId: string;
   mode?: string;
   modeSettings?: Record<string, unknown> | null;
+  // Tutor-mode (and future modes that need it) runtime state. Optional.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  topicPlan?: any;
+  tutorPhase?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getAgentForThread(meta: AgentMetaShape): any {
   const mode = getMode(meta.mode);
   const settings = applyDefaults(mode, meta.modeSettings ?? null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const topicPlan = Array.isArray(meta.topicPlan) ? (meta.topicPlan as any[]) : undefined;
   const instructions = mode.buildSystemPrompt({
     settings,
     widgetCatalog: widgetCatalogLines(),
+    threadState: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      topicPlan: topicPlan as any,
+      tutorPhase: meta.tutorPhase,
+    },
   });
   return new Agent(components.agent, {
     name: `Wikipefia Tutor (${mode.id})`,

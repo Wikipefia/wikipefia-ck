@@ -22,6 +22,8 @@ export type {
   ModeAllowedTools,
   Localized,
   BuildSystemPromptArgs,
+  ModeThreadState,
+  TutorTopic,
 } from "./types";
 
 /**

@@ -10,6 +10,7 @@ import type {
   ChatMessage,
   ExportFormat,
   Thread,
+  TutorTopic,
 } from "./index";
 
 export interface ListThreadsResult {
@@ -131,6 +132,16 @@ export interface ChatTransport {
   ): ListQuestionBoxPairsResult;
   /** Submit a follow-up question into a QuestionBox; streams the answer. */
   askQuestionBox(args: AskQuestionBoxArgs): Promise<void>;
+
+  // ── Tutor-mode topic plan ──────────────────────────────
+  /**
+   * Replace the entire topic plan for a tutor thread. The frontend always
+   * sends the FULL (possibly edited) array — simpler than per-field
+   * patches and avoids race-conditions during inline edits in the side
+   * panel. Throws if called on a thread whose `tutorPhase` is "teaching"
+   * or "completed" (the plan is locked once teaching begins).
+   */
+  updateTopicPlan(threadId: string, topics: TutorTopic[]): Promise<void>;
 
   // ── Files ──────────────────────────────────────────────
   /** Upload a file and return its reference (storageId, name, mimeType, size). */

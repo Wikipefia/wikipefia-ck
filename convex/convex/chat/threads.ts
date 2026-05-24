@@ -76,6 +76,8 @@ export const getThread = query({
       mode: row.mode,
       modeSettings: row.modeSettings,
       modePromptVersion: row.modePromptVersion,
+      topicPlan: row.topicPlan,
+      tutorPhase: row.tutorPhase,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };
@@ -149,6 +151,10 @@ export const createThread = mutation({
       mode: resolvedMode.id,
       modeSettings: resolvedSettings,
       modePromptVersion: resolvedMode.promptVersion,
+      // Tutor mode starts in Phase 0 ("input"): the model's first
+      // response is expected to emit `PlanTopics`. Other modes don't
+      // use this field.
+      ...(resolvedMode.id === "tutor" ? { tutorPhase: "input" } : {}),
       cancelRequested: false,
       generationId: 1,
       unlockedWidgets: [],
@@ -346,6 +352,146 @@ export const getUnlockedWidgets = internalQuery({
       .withIndex("by_thread", (q) => q.eq("threadId", threadId))
       .first();
     return row?.unlockedWidgets ?? [];
+  },
+});
+
+// ── Tutor-mode topic plan ───────────────────────────────────
+
+/**
+ * Per-topic shape stored in `threadMeta.topicPlan`. Kept loose
+ * (`v.any()` in the schema) so iterating on the shape doesn't require a
+ * migration during development. The shape here mirrors what the
+ * frontend renders.
+ */
+const topicValidator = v.object({
+  id: v.string(),
+  title: v.string(),
+  description: v.string(),
+  prompt: v.string(),
+  order: v.number(),
+  status: v.union(
+    v.literal("pending"),
+    v.literal("active"),
+    v.literal("completed"),
+    v.literal("skipped"),
+  ),
+});
+
+/**
+ * Replace the whole topic plan. The frontend ALWAYS sends the full
+ * (possibly edited) array — simpler than per-field patches and avoids
+ * race-conditions during inline edits in the side panel.
+ */
+export const updateTopicPlan = mutation({
+  args: {
+    userId: v.string(),
+    threadId: v.string(),
+    topics: v.array(topicValidator),
+  },
+  handler: async (ctx, { userId, threadId, topics }) => {
+    const row = await ctx.db
+      .query("threadMeta")
+      .withIndex("by_thread", (q) => q.eq("threadId", threadId))
+      .first();
+    if (!row || row.userId !== userId) throw new Error("Forbidden");
+    // Once teaching has started, plan edits are ignored (the model has
+    // already started consuming the plan; flipping topics underneath it
+    // would be confusing). The UI disables editing in this state too.
+    if (row.tutorPhase === "teaching" || row.tutorPhase === "completed") {
+      throw new Error("Plan is locked once teaching begins");
+    }
+    // Renumber order in case the client reordered. We always trust
+    // array index for canonical order.
+    const renumbered = topics.map((t, i) => ({ ...t, order: i }));
+    await ctx.db.patch(row._id, {
+      topicPlan: renumbered,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+/**
+ * Internal: replace plan from the agent action when PlanTopics tool-call
+ * is detected post-stream. Bypasses the userId/teaching-phase guards
+ * because the server is authoritative here.
+ */
+export const setTopicPlanInternal = internalMutation({
+  args: {
+    threadId: v.string(),
+    topics: v.array(topicValidator),
+    tutorPhase: v.optional(v.string()),
+  },
+  handler: async (ctx, { threadId, topics, tutorPhase }) => {
+    const row = await ctx.db
+      .query("threadMeta")
+      .withIndex("by_thread", (q) => q.eq("threadId", threadId))
+      .first();
+    if (!row) return;
+    const renumbered = topics.map((t, i) => ({ ...t, order: i }));
+    await ctx.db.patch(row._id, {
+      topicPlan: renumbered,
+      ...(tutorPhase ? { tutorPhase } : {}),
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+/**
+ * Internal: bump tutorPhase from agent action (e.g. when the user
+ * approves the plan and teaching begins).
+ */
+export const setTutorPhaseInternal = internalMutation({
+  args: {
+    threadId: v.string(),
+    tutorPhase: v.string(),
+  },
+  handler: async (ctx, { threadId, tutorPhase }) => {
+    const row = await ctx.db
+      .query("threadMeta")
+      .withIndex("by_thread", (q) => q.eq("threadId", threadId))
+      .first();
+    if (!row) return;
+    await ctx.db.patch(row._id, {
+      tutorPhase,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+/**
+ * Internal: mark a single topic by id with a new status (typically
+ * advancing "pending" → "active" → "completed" as the model progresses
+ * through the plan).
+ */
+export const setTopicStatusInternal = internalMutation({
+  args: {
+    threadId: v.string(),
+    topicId: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("active"),
+      v.literal("completed"),
+      v.literal("skipped"),
+    ),
+  },
+  handler: async (ctx, { threadId, topicId, status }) => {
+    const row = await ctx.db
+      .query("threadMeta")
+      .withIndex("by_thread", (q) => q.eq("threadId", threadId))
+      .first();
+    if (!row) return;
+    const plan = (row.topicPlan ?? []) as Array<{
+      id: string;
+      status: "pending" | "active" | "completed" | "skipped";
+    } & Record<string, unknown>>;
+    if (plan.length === 0) return;
+    const updated = plan.map((t) =>
+      t.id === topicId ? { ...t, status } : t,
+    );
+    await ctx.db.patch(row._id, {
+      topicPlan: updated,
+      updatedAt: Date.now(),
+    });
   },
 });
 

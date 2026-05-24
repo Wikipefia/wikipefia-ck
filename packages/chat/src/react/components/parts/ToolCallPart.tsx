@@ -40,6 +40,12 @@ const InteractiveNextTopicButton = lazy(() =>
   })),
 );
 
+const InteractivePlanTopics = lazy(() =>
+  import("../widgets/InteractivePlanTopics").then((m) => ({
+    default: m.InteractivePlanTopics,
+  })),
+);
+
 interface ToolCallPartProps {
   part: Extract<MessagePart, { type: "tool-call" }>;
   messageId: string;
@@ -128,6 +134,36 @@ export function ToolCallPart({
     // gap. The Phase-C-retry mechanism (in agent_action.ts) will
     // typically replace this with a well-formed AskUserQuestion soon.
     return null;
+  }
+
+  // PlanTopics (tutor mode, Phase 0) — pauses the agent while the user
+  // reviews the topic plan in the right-side panel. Renders only the
+  // "approve and start" button; actual editing happens in TopicListPanel.
+  if (part.toolName === "PlanTopics" && part.state === "complete") {
+    const args = part.args as { topics?: unknown[] } | undefined;
+    const topicCount = Array.isArray(args?.topics) ? args!.topics!.length : 0;
+    const answered = extractPlanTopicsAnswer(resolvedResult);
+    return (
+      <Suspense
+        fallback={
+          <WidgetSkeleton toolName="PlanTopics" partialArgsKeyCount={1} />
+        }
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <InteractivePlanTopics
+            messageId={messageId}
+            toolCallId={part.toolCallId}
+            approvalId={part.approvalId ?? null}
+            topicCount={topicCount}
+            answered={answered}
+          />
+        </motion.div>
+      </Suspense>
+    );
   }
 
   // NextTopicButton (tutor mode, autoAdvance=off) — pauses the agent and
@@ -307,6 +343,29 @@ function extractAskUserQuestionAnswer(
   if (typeof text === "string") return { value: text, text };
   if (typeof v === "string" || typeof v === "number") return { value: v };
   return null;
+}
+
+/**
+ * Pull the PlanTopics submission payload from a tool result.
+ *   - { action: "start" }
+ *   - { action: "replan", instructions?: string }
+ */
+function extractPlanTopicsAnswer(
+  result: unknown,
+): { action?: "start" | "replan"; instructions?: string } | null {
+  if (!result || typeof result !== "object") return null;
+  const r = result as Record<string, unknown>;
+  const inner =
+    typeof r.value === "object" && r.value !== null
+      ? (r.value as Record<string, unknown>)
+      : typeof r.output === "object" && r.output !== null
+        ? (r.output as Record<string, unknown>)
+        : r;
+  const action = inner.action;
+  if (action !== "start" && action !== "replan") return null;
+  const instructions =
+    typeof inner.instructions === "string" ? inner.instructions : undefined;
+  return { action, instructions };
 }
 
 /**

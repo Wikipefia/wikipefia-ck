@@ -64,6 +64,8 @@ export function useConvexChatTransport({
 
   const mAskQuestionBox = useMutation(api.chat.questionBox.askQuestionBox);
 
+  const mUpdateTopicPlan = useMutation(api.chat.threads.updateTopicPlan);
+
   const mGenerateUploadUrl = useMutation(api.chat.files.generateUploadUrl);
 
   const aExportThread = useAction(api.chat.export.exportThread);
@@ -268,6 +270,12 @@ export function useConvexChatTransport({
         });
       },
 
+      // ── Tutor-mode topic plan ─────────────────────────────
+      async updateTopicPlan(threadId, topics) {
+        if (!userId) throw new Error("Session not ready");
+        await mUpdateTopicPlan({ userId, threadId, topics });
+      },
+
       // ── Files ─────────────────────────────────────────────
       async uploadFile(file: File): Promise<AttachmentRef> {
         if (!userId) throw new Error("Session not ready");
@@ -311,6 +319,7 @@ export function useConvexChatTransport({
       mRegenerateMessage,
       mSubmitToolResponse,
       mAskQuestionBox,
+      mUpdateTopicPlan,
       mGenerateUploadUrl,
       aExportThread,
     ],
@@ -324,19 +333,23 @@ export { optimisticallySendMessage };
 // ────────────────────────────────────────────────────────
 
 /**
- * Marker prefix used by the backend Phase-C-retry recovery (in
+ * Marker prefixes used by the backend retry-recovery logic (in
  * `convex/convex/chat/agent_action.ts`). Internal reminder messages
- * persisted to the agent's thread for context purposes start with this
- * marker so we can hide them from the chat UI without deleting them.
+ * persisted to the agent's thread start with one of these markers so
+ * we can hide them from the chat UI without deleting them.
  *
- * MUST stay in sync with `PHASE_C_RETRY_MARKER` on the backend.
+ * MUST stay in sync with the markers exported from agent_action.ts.
  */
-const PHASE_C_RETRY_MARKER = "__WIKIPEFIA_INTERNAL_PHASE_C_RETRY__";
+const INTERNAL_RETRY_MARKERS = [
+  "__WIKIPEFIA_INTERNAL_PHASE_C_RETRY__",
+  "__WIKIPEFIA_INTERNAL_COVERAGE_RETRY__",
+];
 
 /**
- * Returns true when the message is one of our internal Phase-C reminder
- * injections. Those messages have role "user" (so the LLM treats them
- * as instructions on the next turn) but should never render in the UI.
+ * Returns true when the message is one of our internal retry/reminder
+ * injections (Phase-C-retry, coverage-retry, etc.). These messages have
+ * role "user" (so the LLM treats them as instructions on the next turn)
+ * but should never render in the UI.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function isInternalPhaseCRetry(m: any): boolean {
@@ -345,7 +358,10 @@ function isInternalPhaseCRetry(m: any): boolean {
   const parts = Array.isArray(m.parts) ? m.parts : [];
   for (const p of parts) {
     if (p?.type === "text" && typeof p.text === "string") {
-      if (p.text.startsWith(PHASE_C_RETRY_MARKER)) return true;
+      const t = p.text;
+      if (INTERNAL_RETRY_MARKERS.some((marker) => t.startsWith(marker))) {
+        return true;
+      }
     }
   }
   return false;
@@ -412,6 +428,9 @@ interface ConvexThreadDoc {
   mode?: string;
   modeSettings?: Record<string, unknown>;
   modePromptVersion?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  topicPlan?: any;
+  tutorPhase?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -426,6 +445,11 @@ function convertThread(t: ConvexThreadDoc): Thread {
     ...(t.mode ? { mode: t.mode } : {}),
     ...(t.modeSettings ? { modeSettings: t.modeSettings } : {}),
     ...(t.modePromptVersion ? { modePromptVersion: t.modePromptVersion } : {}),
+    ...(Array.isArray(t.topicPlan)
+      ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        { topicPlan: t.topicPlan as any }
+      : {}),
+    ...(t.tutorPhase ? { tutorPhase: t.tutorPhase } : {}),
     createdAt: t.createdAt,
     updatedAt: t.updatedAt,
   };

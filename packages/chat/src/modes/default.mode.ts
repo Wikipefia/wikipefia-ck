@@ -25,5 +25,6 @@ export const defaultMode: ModeDefinition = {
   hidden: true,
   settings: [],
   allowedTools: { kind: "default" },
+  // Default mode ignores threadState — it's a stateless free-form chat.
   buildSystemPrompt: () => SYSTEM_PROMPT_V1,
 };

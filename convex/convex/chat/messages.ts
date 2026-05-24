@@ -396,19 +396,42 @@ export const submitToolResponse = mutation({
     if (!meta || meta.userId !== userId) throw new Error("Forbidden");
 
     // Recover the toolName + the originally-emitted approvalId from the
-    // assistant message that contained this tool call. We need the toolName
-    // for the synthesized tool-result and we PREFER the message's stored
-    // approvalId over whatever the client passed (defense in depth).
-    let toolName = "Quiz";
+    // assistant message that contained this tool call.
+    //
+    // Tool-call parts in saved message content come in TWO shapes
+    // depending on AI SDK version / agent SDK version:
+    //   1. { type: "tool-call",   toolCallId, toolName: "Quiz", input: ... }
+    //   2. { type: "tool-Quiz",   toolCallId, input: ... }      // AI SDK v6 dynamic
+    // We accept both — extracting toolName from the type string when the
+    // explicit `toolName` field isn't present.
+    //
+    // Previously we only handled shape (1) and silently fell back to
+    // "Quiz" for shape (2) — which broke phase-transition logic for
+    // NextTopicButton / PlanTopics / AskUserQuestion submissions because
+    // their else-if branches in the phase machinery never matched.
+    let toolName = "";
     let resolvedApprovalId = approvalId;
     if (Array.isArray(msg.message?.content)) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       for (const part of msg.message!.content as any[]) {
-        if (part?.type === "tool-call" && part.toolCallId === toolCallId) {
-          if (typeof part.toolName === "string") toolName = part.toolName;
+        const t = part?.type;
+        const isToolCall =
+          t === "tool-call" ||
+          (typeof t === "string" &&
+            t.startsWith("tool-") &&
+            t !== "tool-result" &&
+            t !== "tool-approval-request" &&
+            t !== "tool-approval-response");
+        if (isToolCall && part.toolCallId === toolCallId) {
+          if (typeof part.toolName === "string") {
+            toolName = part.toolName;
+          } else if (typeof t === "string" && t.startsWith("tool-")) {
+            // Shape (2): toolName encoded in the type string.
+            toolName = t.slice("tool-".length);
+          }
         }
         if (
-          part?.type === "tool-approval-request" &&
+          t === "tool-approval-request" &&
           part.toolCallId === toolCallId &&
           typeof part.approvalId === "string"
         ) {
@@ -416,8 +439,12 @@ export const submitToolResponse = mutation({
         }
       }
     }
-    // Last-resort fallback so the call doesn't 500. AI SDK will auto-deny in
-    // this branch, but at least the tool-result still feeds the LLM.
+    // Last-resort fallback so the call doesn't 500. We default to "Quiz"
+    // here for back-compat with thread histories created before this
+    // helper handled all paused tools — Quiz was historically the only
+    // one. AI SDK will auto-deny if approvalId doesn't match, but at
+    // least the tool-result still feeds the LLM.
+    if (!toolName) toolName = "Quiz";
     if (!resolvedApprovalId) resolvedApprovalId = toolCallId;
 
     await saveMessage(ctx, components.agent, {
@@ -450,12 +477,94 @@ export const submitToolResponse = mutation({
       } as any,
     });
 
+    // Tutor-mode plan-approval transitions:
+    //   - PlanTopics with action=start  → flip tutorPhase: review → teaching
+    //   - PlanTopics with action=replan → flip tutorPhase: review → input
+    //                                     and clear the existing topicPlan so
+    //                                     the next runAgent re-emits it
+    //                                     fresh (potentially with extra
+    //                                     instructions encoded in the
+    //                                     response payload).
+    //   - NextTopicButton with action=continue → mark current "active" topic
+    //                                            as completed and the next
+    //                                            "pending" one as active.
+    const phasePatch: Record<string, unknown> = {};
+    if (toolName === "PlanTopics") {
+      const action =
+        (response && typeof response === "object" && "action" in response
+          ? (response as { action?: unknown }).action
+          : undefined);
+      if (action === "start") {
+        phasePatch.tutorPhase = "teaching";
+        // Mark the first topic as active so the system prompt knows
+        // where to begin (model also has the conversation history, but
+        // explicit state is more reliable).
+        const plan = (meta.topicPlan ?? []) as Array<{
+          id: string;
+          status: "pending" | "active" | "completed" | "skipped";
+        } & Record<string, unknown>>;
+        if (plan.length > 0) {
+          phasePatch.topicPlan = plan.map((t, i) =>
+            i === 0 && t.status === "pending"
+              ? { ...t, status: "active" as const }
+              : t,
+          );
+        }
+      } else if (action === "replan") {
+        phasePatch.tutorPhase = "input";
+        phasePatch.topicPlan = undefined;
+      }
+    } else if (toolName === "NextTopicButton") {
+      const action =
+        response && typeof response === "object" && "action" in response
+          ? (response as { action?: unknown }).action
+          : undefined;
+      if (action === "continue") {
+        const plan = (meta.topicPlan ?? []) as Array<{
+          id: string;
+          status: "pending" | "active" | "completed" | "skipped";
+        } & Record<string, unknown>>;
+        if (plan.length > 0) {
+          // Find the active topic; mark it completed; activate the next
+          // pending one. If there's no next pending, the session is done.
+          let activatedNext = false;
+          let allCompleted = true;
+          const updated = plan.map((t) => {
+            if (t.status === "active") {
+              return { ...t, status: "completed" as const };
+            }
+            return t;
+          });
+          for (let i = 0; i < updated.length; i++) {
+            if (
+              !activatedNext &&
+              (updated[i].status === "pending" ||
+                updated[i].status === "skipped")
+            ) {
+              if (updated[i].status === "pending") {
+                updated[i] = { ...updated[i], status: "active" };
+                activatedNext = true;
+                allCompleted = false;
+              }
+            } else if (updated[i].status === "pending") {
+              allCompleted = false;
+            }
+          }
+          phasePatch.topicPlan = updated;
+          if (allCompleted && !activatedNext) {
+            phasePatch.tutorPhase = "completed";
+          }
+        }
+      }
+    }
+
     const generationId = (meta.generationId ?? 0) + 1;
     await ctx.db.patch(meta._id, {
       status: "generating",
       cancelRequested: false,
       generationId,
       updatedAt: Date.now(),
+      ...phasePatch,
     });
     await ctx.scheduler.runAfter(0, internal.chat.agent_action.runAgent, {
       threadId: msg.threadId,

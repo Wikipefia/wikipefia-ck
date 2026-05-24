@@ -21,6 +21,7 @@ export {
   useDeleteThread,
   useRenameThread,
   useSetThreadModel,
+  useUpdateTopicPlan,
 } from "./hooks/use-threads";
 export {
   useMessages,
@@ -52,6 +53,10 @@ export {
   ModeSettingsPanel,
   type ModeSettingsPanelProps,
 } from "./components/ModeSettingsPanel";
+export {
+  TopicListPanel,
+  type TopicListPanelProps,
+} from "./components/TopicListPanel";
 export { DebugExportMenu } from "./components/DebugExportMenu";
 export { TypingIndicator } from "./components/TypingIndicator";
 export { ErrorBanner } from "./components/ErrorBanner";

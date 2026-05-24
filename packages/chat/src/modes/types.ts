@@ -85,6 +85,31 @@ export type ModeAllowedTools =
   | { kind: "include"; tools: string[] }
   | { kind: "exclude"; tools: string[] };
 
+/**
+ * One topic in the tutor-mode plan. Server-side authoritative shape.
+ */
+export interface TutorTopic {
+  id: string;
+  title: string;
+  description: string;
+  prompt: string;
+  order: number;
+  status: "pending" | "active" | "completed" | "skipped";
+}
+
+/**
+ * Per-thread runtime state that modes may use when building the system
+ * prompt. Optional — modes that don't care can ignore it.
+ *
+ * For tutor mode, this carries the topic plan and current phase so the
+ * model knows whether to emit `PlanTopics` (Phase 0), wait for approval,
+ * or teach a specific topic from the plan.
+ */
+export interface ModeThreadState {
+  topicPlan?: TutorTopic[];
+  tutorPhase?: "input" | "review" | "teaching" | "completed" | string;
+}
+
 export interface BuildSystemPromptArgs {
   /** Resolved (defaults-applied) settings for the thread. */
   settings: Record<string, unknown>;
@@ -93,6 +118,11 @@ export interface BuildSystemPromptArgs {
    * stays pure; the helper that produces it lives in the tools subpath.
    */
   widgetCatalog: string;
+  /**
+   * Optional per-thread state. When omitted, modes should fall back to
+   * "no plan, no current topic" behavior (i.e. Phase 0 for tutor).
+   */
+  threadState?: ModeThreadState;
 }
 
 /**

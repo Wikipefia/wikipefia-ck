@@ -92,6 +92,34 @@ export default defineSchema({
      */
     modePromptVersion: v.optional(v.string()),
     /**
+     * Tutor-mode topic plan. Built by the model up-front (Phase 0 of the
+     * tutor flow) via the `PlanTopics` tool, then optionally edited by the
+     * user in the side panel before teaching begins.
+     *
+     * Stored as a JSON array (use `v.any()` to avoid migration churn while
+     * the shape is iterating). Concrete TypeScript shape:
+     *   { id: string, title: string, description: string, prompt: string,
+     *     order: number, status: "pending" | "active" | "completed" | "skipped" }
+     *
+     * Undefined means "no plan yet". Empty array means "user removed all
+     * topics" (treated like 'none' from the agent's perspective).
+     */
+    topicPlan: v.optional(v.any()),
+    /**
+     * High-level state of the tutor session. Drives the model's behavior
+     * (which fragment of the system prompt is active) and the UI (which
+     * widgets render in chat / which panel content shows on the side).
+     *
+     *   - "input"     — no plan yet; awaiting model's PlanTopics tool-call
+     *   - "review"    — plan emitted, awaiting user's approval / edits
+     *   - "teaching"  — user approved; model is teaching topic-by-topic
+     *   - "completed" — all topics covered; session done
+     *
+     * Undefined = "input" (back-compat for tutor threads created before
+     * this feature).
+     */
+    tutorPhase: v.optional(v.string()),
+    /**
      * Monotonically-increasing token bumped each time a new generation starts
      * (sendMessage / editAndRegenerate / regenerateMessage). The runAgent
      * action remembers the value it was scheduled with and aborts if it sees

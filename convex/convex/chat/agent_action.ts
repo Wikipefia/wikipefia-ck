@@ -16,11 +16,18 @@ import { getMode } from "@wikipefia/chat/modes";
  * last assistant message contains substantial prose but NONE of these,
  * Phase C was skipped (the "promise without payoff" failure mode the
  * system prompt warns about). We auto-retry once with a hidden reminder.
+ *
+ * `PlanTopics` is also a pausing tool — when the model emits it, the
+ * thread enters Phase 0 review and waits for the user. The detector
+ * uses `hasPendingApproval` (which sees the approval-request part) for
+ * the planning case; PlanTopics doesn't need to be in this set, but
+ * including it is harmless (defense in depth).
  */
 const PAUSING_TOOLS = new Set([
   "AskUserQuestion",
   "Quiz",
   "NextTopicButton",
+  "PlanTopics",
 ]);
 
 /**
@@ -29,6 +36,9 @@ const PAUSING_TOOLS = new Set([
  * Obscure enough that no real user would type it.
  */
 export const PHASE_C_RETRY_MARKER = "__WIKIPEFIA_INTERNAL_PHASE_C_RETRY__";
+
+/** Marker for the coverage-check retry (different cause, same UI hide). */
+export const COVERAGE_RETRY_MARKER = "__WIKIPEFIA_INTERNAL_COVERAGE_RETRY__";
 
 /**
  * The agent loop. Triggered by:
@@ -81,10 +91,22 @@ export const runAgent = internalAction({
      * PHASE_C_RETRY_MARKER prefix so the UI hides it.
      */
     isPhaseCRetry: v.optional(v.boolean()),
+    /**
+     * True when this is a coverage-recovery retry — model emitted
+     * NextTopicButton but our LLM coverage check found gaps. The retry
+     * disables further coverage checks (one shot per turn).
+     */
+    isCoverageRetry: v.optional(v.boolean()),
   },
   handler: async (
     ctx,
-    { threadId, promptMessageId, generationId, isPhaseCRetry },
+    {
+      threadId,
+      promptMessageId,
+      generationId,
+      isPhaseCRetry,
+      isCoverageRetry,
+    },
   ) => {
     const meta = await ctx.runQuery(internal.chat.threads.getMeta, {
       threadId,
@@ -331,6 +353,17 @@ export const runAgent = internalAction({
         return;
       }
 
+      // ── Tutor-mode plan extraction ───────────────────────
+      // When the model emits `PlanTopics` (Phase 0), the tool's args
+      // contain the topic list — but `execute` only runs after user
+      // approval, by which time the user may have edited the plan. So
+      // we extract the args from the tool-call part itself, BEFORE
+      // approval, and persist them to `threadMeta.topicPlan` so the
+      // side panel can show them immediately.
+      if (mode.id === "tutor") {
+        await extractAndSaveTopicPlan(ctx, threadId);
+      }
+
       // Determine final status: pending approval → awaiting_user, else idle.
       const hasPendingApproval = await checkPendingApproval(ctx, threadId);
 
@@ -349,7 +382,7 @@ export const runAgent = internalAction({
         !hasPendingApproval &&
         !isPhaseCRetry &&
         mode.id === "tutor" &&
-        (await detectPhaseCSkip(ctx, threadId))
+        (await detectPhaseCSkip(ctx, threadId, meta.tutorPhase))
       ) {
         // Status stays "generating" — the retry's runAgent will manage it.
         await scheduleTutorPhaseCRetry(
@@ -357,8 +390,39 @@ export const runAgent = internalAction({
           threadId,
           meta.userId,
           generationId,
+          meta.tutorPhase,
         );
         return;
+      }
+
+      // ── Tutor-mode coverage check ─────────────────────────
+      // When the model emits NextTopicButton (signaling "topic done, move
+      // on"), we run a cheap LLM check to verify the topic was actually
+      // covered according to its `prompt`. If the check fails, we save a
+      // hidden reminder and schedule a retry — the model writes more about
+      // the current topic and (eventually) emits a fresh NextTopicButton.
+      //
+      // Limited to the first attempt (`!isCoverageRetry`) so a stubborn
+      // model can't trap the user in an infinite "you're not done yet"
+      // loop. Skipped during PlanTopics review (no active topic yet) and
+      // during the planning phase.
+      if (
+        hasPendingApproval &&
+        !isPhaseCRetry &&
+        !isCoverageRetry &&
+        mode.id === "tutor" &&
+        (meta.tutorPhase === "teaching")
+      ) {
+        const coverageRetry = await maybeScheduleCoverageRetry(
+          ctx,
+          threadId,
+          meta,
+          generationId,
+        );
+        if (coverageRetry) {
+          // Don't flip status — recovery owns it.
+          return;
+        }
       }
 
       await ctx.runMutation(internal.chat.threads.setStatus, {
@@ -411,18 +475,356 @@ export const runAgent = internalAction({
 });
 
 /**
- * Tutor-mode Phase-C-skip detector.
+ * Cheap LLM call: given the active topic's `prompt` and the assistant's
+ * recent prose, determine whether the topic has been adequately covered.
  *
- * Looks at the most recent assistant message. Returns true iff:
- *   - the message has substantial prose content (>= 60 chars of text), AND
- *   - it contains ZERO tool calls from PAUSING_TOOLS.
+ * Returns `{ covered: true }` on YES, `{ covered: false, reason }` on NO,
+ * and `{ covered: true }` on any error (we err on the side of letting
+ * the user move on rather than getting stuck in retry hell).
+ */
+const COVERAGE_MODEL = "openai/gpt-4o-mini";
+const COVERAGE_SYSTEM_PROMPT = `You are a teaching-quality auditor. Given a tutor topic's prompt (instructions for what to cover) and the tutor's recent explanation, decide whether the topic has been adequately covered.
+
+OUTPUT FORMAT (strict):
+Line 1: exactly "YES" or "NO".
+Lines 2+: brief one-sentence justification. If NO, list the missing aspects, comma-separated.
+
+Rules:
+- "Adequately covered" = the explanation addresses every key concept the topic prompt asked for. Examples may be optional, but core concepts cannot be skipped.
+- Be generous with paraphrases. The tutor doesn't have to use the exact wording from the prompt.
+- If the explanation just defines a term without examples but the prompt didn't demand examples — that's still YES.
+- Be strict if entire core concepts from the prompt are missing.
+
+Examples:
+TOPIC PROMPT: "Explain what a derivative is, give the formal definition with limit, and one geometric interpretation."
+EXPLANATION: "A derivative is the rate of change. Formally, f'(x) = lim h→0 (f(x+h) − f(x))/h. Geometrically, it's the slope of the tangent line at a point."
+ANSWER:
+YES
+All three asked aspects present.
+
+TOPIC PROMPT: "Define random variable, distinguish discrete vs continuous, give two examples of each."
+EXPLANATION: "A random variable is a variable whose value depends on a random experiment."
+ANSWER:
+NO
+Missing: discrete vs continuous distinction, examples for each kind.`;
+
+interface CoverageResult {
+  covered: boolean;
+  reason?: string;
+}
+
+async function runCoverageCheck(
+  topicPrompt: string,
+  assistantContent: string,
+): Promise<CoverageResult> {
+  if (assistantContent.trim().length < 100) {
+    // Too little content to even bother — clearly under-covered. The
+    // existing Phase-C-retry typically catches this, but defense in
+    // depth.
+    return { covered: false, reason: "Объяснение слишком короткое." };
+  }
+  try {
+    const { text } = await generateText({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      model: titleOpenRouter(COVERAGE_MODEL) as any,
+      system: COVERAGE_SYSTEM_PROMPT,
+      prompt: [
+        "TOPIC PROMPT:",
+        topicPrompt.slice(0, 2000),
+        "",
+        "EXPLANATION:",
+        assistantContent.slice(0, 4000),
+        "",
+        "ANSWER:",
+      ].join("\n"),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ...({ maxOutputTokens: 200 } as any),
+    });
+    const lines = (text ?? "").trim().split("\n");
+    const verdict = (lines[0] ?? "").trim().toUpperCase();
+    if (verdict.startsWith("YES")) {
+      return { covered: true };
+    }
+    if (verdict.startsWith("NO")) {
+      const reason = lines.slice(1).join(" ").trim();
+      return { covered: false, reason: reason || "Тема покрыта неполностью." };
+    }
+    // Ambiguous response → treat as covered (don't trap user).
+    return { covered: true };
+  } catch (err) {
+    console.warn("runCoverageCheck failed", err);
+    return { covered: true };
+  }
+}
+
+/**
+ * After a tutor-mode turn that ended with a NextTopicButton emission,
+ * verify that the active topic was actually covered. Returns true when a
+ * recovery was scheduled (caller should NOT flip thread status), false
+ * when no retry was needed (normal awaiting_user flow proceeds).
+ */
+async function maybeScheduleCoverageRetry(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ctx: any,
+  threadId: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  meta: any,
+  generationId: number | undefined,
+): Promise<boolean> {
+  // Only fires when the active topic exists AND the model just emitted
+  // NextTopicButton (the case we want to gate).
+  const plan = (meta?.topicPlan ?? []) as Array<{
+    id: string;
+    title: string;
+    prompt: string;
+    status: "pending" | "active" | "completed" | "skipped";
+  }>;
+  const active = plan.find((t) => t.status === "active");
+  if (!active) return false;
+
+  // Find the latest assistant message — does it contain NextTopicButton?
+  // If not, this isn't the case we care about.
+  const recent = await ctx.runQuery(
+    components.agent.messages.listMessagesByThreadId,
+    {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      threadId: threadId as any,
+      order: "desc",
+      paginationOpts: { numItems: 5, cursor: null },
+    },
+  );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const items = (recent?.page ?? []) as any[];
+  const latestAssistant = items.find(
+    (m) => (m.message?.role ?? m.role) === "assistant",
+  );
+  if (!latestAssistant) return false;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const latestContent: any[] = Array.isArray(latestAssistant.message?.content)
+    ? latestAssistant.message.content
+    : Array.isArray(latestAssistant.parts)
+      ? latestAssistant.parts
+      : [];
+  const hasNextTopic = latestContent.some((p) => {
+    const t = p?.type;
+    const isCall =
+      t === "tool-call" ||
+      (typeof t === "string" && t.startsWith("tool-") && t !== "tool-result");
+    return isCall && p.toolName === "NextTopicButton";
+  });
+  if (!hasNextTopic) return false;
+
+  // Aggregate all assistant text since this topic became active. We walk
+  // backwards from the most recent message, collecting prose, and stop
+  // when we hit either: (a) the previous NextTopicButton (= start of
+  // this topic), or (b) the PlanTopics tool message (= start of the
+  // session).
+  const collected: string[] = [];
+  for (const m of items) {
+    if ((m.message?.role ?? m.role) !== "assistant") continue;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const content: any[] = Array.isArray(m.message?.content)
+      ? m.message.content
+      : Array.isArray(m.parts)
+        ? m.parts
+        : [];
+    let stop = false;
+    for (const p of content) {
+      if (p?.type === "text" && typeof p.text === "string") {
+        collected.unshift(p.text);
+      }
+      const t = p?.type;
+      const isCall =
+        t === "tool-call" ||
+        (typeof t === "string" && t.startsWith("tool-") && t !== "tool-result");
+      if (
+        isCall &&
+        m._creationTime !== latestAssistant._creationTime &&
+        (p.toolName === "NextTopicButton" || p.toolName === "PlanTopics")
+      ) {
+        stop = true;
+        break;
+      }
+    }
+    if (stop) break;
+  }
+  const assistantContent = collected.join("\n\n");
+
+  const result = await runCoverageCheck(active.prompt, assistantContent);
+  if (result.covered) return false;
+
+  // Coverage failed — save a hidden reminder + schedule recovery.
+  const reminder =
+    `${COVERAGE_RETRY_MARKER}\n\n` +
+    `СИСТЕМНОЕ НАПОМИНАНИЕ (coverage-retry, авто-инжект):\n\n` +
+    `Coverage check определил, что тема "${active.title}" покрыта неполностью.\n\n` +
+    `Пропущенные аспекты или замечания:\n${result.reason ?? "—"}\n\n` +
+    `СЕЙЧАС: продолжи объяснять ТЕКУЩУЮ тему — НЕ переходи на следующую. ` +
+    `Покрой пропущенные аспекты прозой, потом задай НОВЫЙ AskUserQuestion ` +
+    `по этим пропущенным аспектам, и ТОЛЬКО ПОТОМ снова эмить ` +
+    `NextTopicButton. Не извиняйся, не комментируй это сообщение — ` +
+    `просто продолжай.`;
+  const { messageId } = await saveMessage(ctx, components.agent, {
+    threadId,
+    userId: meta.userId,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    message: {
+      role: "user",
+      content: [{ type: "text", text: reminder }],
+    } as any,
+  });
+  await ctx.scheduler.runAfter(
+    250,
+    internal.chat.agent_action.runAgent,
+    {
+      threadId,
+      promptMessageId: messageId,
+      generationId,
+      isCoverageRetry: true,
+    },
+  );
+  return true;
+}
+
+/**
+ * Tutor-mode plan extractor.
  *
- * Note: we don't worry about QuestionBox here — it doesn't pause and
- * doesn't satisfy Phase C either way. A tutor-mode message with ONLY a
- * QuestionBox and prose still counts as "skipped".
+ * Scans the most recent assistant message for a PlanTopics tool-call
+ * part. If found AND the thread hasn't already saved a plan (or is in
+ * "input"/undefined phase), persists the topics to threadMeta.topicPlan
+ * with stable client-side ids and flips tutorPhase → "review" so the UI
+ * opens the side panel.
+ *
+ * Idempotent: re-running on the same message is a no-op (the plan and
+ * phase are already set). Safe to call after every tutor-mode runAgent.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function detectPhaseCSkip(ctx: any, threadId: string): Promise<boolean> {
+async function extractAndSaveTopicPlan(ctx: any, threadId: string): Promise<void> {
+  try {
+    // Skip extraction if a plan already exists and we're not in
+    // input/replan-pending state — re-emissions during recovery
+    // shouldn't overwrite an in-progress plan the user has been
+    // editing.
+    const meta = await ctx.runQuery(internal.chat.threads.getMeta, {
+      threadId,
+    });
+    if (!meta) return;
+    const phase = meta.tutorPhase ?? "input";
+    if (phase !== "input" && phase !== "replan") return;
+
+    // Walk the last few assistant messages looking for a PlanTopics
+    // tool-call. We scan a small window because the planning emission
+    // is always the most recent assistant message in the input phase.
+    const result = await ctx.runQuery(
+      components.agent.messages.listMessagesByThreadId,
+      {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        threadId: threadId as any,
+        order: "desc",
+        paginationOpts: { numItems: 3, cursor: null },
+      },
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const items = (result?.page ?? []) as any[];
+    for (const m of items) {
+      if ((m.message?.role ?? m.role) !== "assistant") continue;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const content: any[] = Array.isArray(m.message?.content)
+        ? m.message.content
+        : Array.isArray(m.parts)
+          ? m.parts
+          : [];
+      for (const part of content) {
+        const partType = part?.type;
+        const isToolCall =
+          partType === "tool-call" ||
+          (typeof partType === "string" &&
+            partType.startsWith("tool-") &&
+            partType !== "tool-result");
+        if (!isToolCall) continue;
+        if (part.toolName !== "PlanTopics") continue;
+        // Found it. Args may live under `input` (AI SDK v6) or `args`
+        // (older shape) — accept either.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const args = (part.input ?? part.args) as
+          | { topics?: Array<{ title?: string; description?: string; prompt?: string }> }
+          | undefined;
+        const rawTopics = Array.isArray(args?.topics) ? args.topics : [];
+        if (rawTopics.length === 0) return;
+        const topics = rawTopics.map((t, i) => ({
+          // Stable id: index + first 8 chars of title hash. Doesn't
+          // need to be globally unique, just stable across edits and
+          // unique within this plan.
+          id: `t${i}-${stableShortId(typeof t.title === "string" ? t.title : `topic-${i}`)}`,
+          title: typeof t.title === "string" ? t.title : `Тема ${i + 1}`,
+          description: typeof t.description === "string" ? t.description : "",
+          prompt: typeof t.prompt === "string" ? t.prompt : "",
+          order: i,
+          status: "pending" as const,
+        }));
+        await ctx.runMutation(
+          internal.chat.threads.setTopicPlanInternal,
+          {
+            threadId,
+            topics,
+            tutorPhase: "review",
+          },
+        );
+        return;
+      }
+      // Stop after the first assistant message — don't accidentally
+      // pick up a PlanTopics from earlier in the history.
+      break;
+    }
+  } catch (err) {
+    console.warn("extractAndSaveTopicPlan failed", err);
+  }
+}
+
+/**
+ * Cheap, deterministic 6-character id derived from a string. Used as a
+ * disambiguator for topic ids. Not crypto-strength — just enough to
+ * avoid collisions across topics within a single plan.
+ */
+function stableShortId(input: string): string {
+  let h = 5381;
+  for (let i = 0; i < input.length; i++) {
+    h = ((h << 5) + h + input.charCodeAt(i)) & 0xffffffff;
+  }
+  return Math.abs(h).toString(36).slice(0, 6);
+}
+
+/**
+ * Tutor-mode Phase-C-skip detector.
+ *
+ * Returns true when the model finished a turn without an end-of-turn
+ * pausing tool (AskUserQuestion / Quiz / NextTopicButton / PlanTopics)
+ * in a context where one was REQUIRED.
+ *
+ * Phase-aware semantics:
+ *   - "teaching": EVERY turn must end with a pausing tool. ANY content
+ *     (prose or non-pausing widgets like Definition) without a pausing
+ *     tool triggers recovery, regardless of prose length. This is the
+ *     case that bit us before — the model emitted Phase A + a Definition
+ *     and stopped without explaining or asking.
+ *   - "input": the model is supposed to either (a) emit `PlanTopics`
+ *     when material is present, or (b) write a short clarification
+ *     "what are we studying?" prose-only. We use the 60-char threshold
+ *     here so the legitimate clarification case doesn't false-positive.
+ *   - "completed": model writes final summary; no tool expected. Skip.
+ *   - undefined/non-tutor: legacy 60-char threshold (back-compat).
+ *
+ * `QuestionBox` is NOT a pausing tool here — a teaching turn that ends
+ * with only a QuestionBox is still "skipped" since the user can ignore
+ * the box and the cycle stalls.
+ */
+async function detectPhaseCSkip(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ctx: any,
+  threadId: string,
+  tutorPhase?: string,
+): Promise<boolean> {
+  if (tutorPhase === "completed" || tutorPhase === "review") return false;
   try {
     const result = await ctx.runQuery(
       components.agent.messages.listMessagesByThreadId,
@@ -448,25 +850,41 @@ async function detectPhaseCSkip(ctx: any, threadId: string): Promise<boolean> {
         : [];
     let textLen = 0;
     let hasPausingTool = false;
+    let hasNonPausingToolCall = false;
     for (const part of content) {
       const t = part?.type;
       if (t === "text" && typeof part.text === "string") {
         textLen += part.text.length;
       } else if (
         // tool-call shapes vary by SDK version; we accept any of these.
-        (t === "tool-call" ||
-          (typeof t === "string" && t.startsWith("tool-") && t !== "tool-result")) &&
-        typeof part.toolName === "string" &&
-        PAUSING_TOOLS.has(part.toolName)
+        t === "tool-call" ||
+        (typeof t === "string" && t.startsWith("tool-") && t !== "tool-result")
       ) {
-        hasPausingTool = true;
+        if (typeof part.toolName === "string") {
+          if (PAUSING_TOOLS.has(part.toolName)) {
+            hasPausingTool = true;
+          } else if (part.toolName !== "lookupWidgetDocs") {
+            // lookupWidgetDocs is a meta-tool; it doesn't count as
+            // "real content". Anything else (Definition, MathBlock,
+            // Figure, ...) does.
+            hasNonPausingToolCall = true;
+          }
+        }
       }
     }
     if (hasPausingTool) return false;
-    // Threshold: too-short messages probably aren't Phase B explanations
-    // (could be a clarifying question, a cancellation echo, etc.). 60 chars
-    // is roughly "one sentence" — anything substantive triggers recovery.
-    return textLen >= 60;
+    // STRICT mode: in tutor teaching, ANY assistant content without a
+    // pausing tool fires recovery — even short Phase-A-only intros that
+    // happened to include a Definition widget. That's the failure mode
+    // we observed: model wrote "Сейчас разберём X" + Definition, then
+    // stopped without Phase B / Phase C.
+    if (tutorPhase === "teaching") {
+      return textLen > 0 || hasNonPausingToolCall;
+    }
+    // For tutor "input" phase or non-tutor threads: keep the old
+    // 60-char threshold so a legitimate "what are we studying?"
+    // clarification doesn't false-positive.
+    return textLen >= 60 || hasNonPausingToolCall;
   } catch (err) {
     console.warn("detectPhaseCSkip failed", err);
     return false;
@@ -478,10 +896,10 @@ async function detectPhaseCSkip(ctx: any, threadId: string): Promise<boolean> {
  * flagged as a Phase-C retry. The reminder text starts with
  * `PHASE_C_RETRY_MARKER` so the UI filters it out (see convex-transport).
  *
- * The model receives a short, surgical instruction: emit ONE
- * AskUserQuestion, no prose. This compensates for the "promise without
- * payoff" failure mode where the model writes "Проверим, что ты усвоил"
- * and stops without the tool call.
+ * Reminder content is phase-specific:
+ *   - teaching: "you didn't end with a pausing tool — finish the cycle"
+ *   - input: "you didn't emit PlanTopics — emit it now"
+ *   - other: generic
  */
 async function scheduleTutorPhaseCRetry(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -489,21 +907,30 @@ async function scheduleTutorPhaseCRetry(
   threadId: string,
   userId: string,
   generationId: number | undefined,
+  tutorPhase: string | undefined,
 ): Promise<void> {
+  let body: string;
+  if (tutorPhase === "teaching") {
+    body =
+      `В режиме TEACHING каждый твой шаг ОБЯЗАН заканчиваться вызовом одного из инструментов: ` +
+      `\`AskUserQuestion\` (если только что объяснял Phase B либо проверяешь дополнительный аспект), ` +
+      `либо \`NextTopicButton\` (если тема покрыта и ты готов перейти к следующей).\n\n` +
+      `В предыдущем шаге ты не вызвал НИ ОДНОГО из них — возможно, ты эмитнул только Phase A intro и/или какой-то декоративный виджет (Definition, MathBlock и т.п.) и остановился. AI SDK завершил generate-loop, пользователь ничего не может сделать.\n\n` +
+      `СЕЙЧАС: продолжи цикл с того места, где ты остановился. Если ещё не было Phase B (объяснения чанка) — напиши его прозой, потом эмить \`AskUserQuestion\`. Если Phase B уже был — сразу \`AskUserQuestion\`. Никаких "извинений" или комментариев про напоминание.`;
+  } else if (tutorPhase === "input") {
+    body =
+      `Ты в фазе PHASE 0 (планирование). Твой первый шаг ОБЯЗАН быть вызовом tool \`PlanTopics\` — разбиение материала на ордерёд тем.\n\n` +
+      `СЕЙЧАС: эмить \`PlanTopics\` с массивом тем. Никакой прозы перед или после tool-call. Если у тебя действительно нет материала — спроси одной короткой фразой "Что изучаем?", без tool-call'ов.`;
+  } else {
+    body =
+      `В предыдущем своём ответе ты НАПИСАЛ прозу про проверку понимания (например, "Проверим, что ты усвоил") но НЕ ВЫЗВАЛ tool \`AskUserQuestion\`. Это failure mode "promise without payoff".\n\n` +
+      `СЕЙЧАС: вызови ровно ОДИН \`AskUserQuestion\` с 1–3 вопросами по только что объяснённому чанку. Никакой прозы — только tool-call.`;
+  }
   const reminderText =
     `${PHASE_C_RETRY_MARKER}\n\n` +
     `СИСТЕМНОЕ НАПОМИНАНИЕ (Phase-C-retry, авто-инжект):\n\n` +
-    `В предыдущем своём ответе ты НАПИСАЛ прозу про проверку понимания ` +
-    `(например, "Проверим, что ты усвоил") но НЕ ВЫЗВАЛ tool ` +
-    `\`AskUserQuestion\`. Это и есть failure mode "promise without ` +
-    `payoff", про который тебя предупреждал system prompt — пользователь ` +
-    `увидел обещание квиза без квиза.\n\n` +
-    `СЕЙЧАС: вызови ровно ОДИН \`AskUserQuestion\` с 1–3 вопросами по ` +
-    `ТОЛЬКО ЧТО объяснённому чанку. Никакой прозы — только tool-call. ` +
-    `Если ты уже использовал тип \`free_text\`, теперь подойдёт ` +
-    `\`multiple_choice\` (и наоборот) — для разнообразия проверки.\n\n` +
-    `Это сообщение является внутренним напоминанием системы, не от ` +
-    `пользователя. Не извиняйся, не комментируй — просто эмить tool.`;
+    body +
+    `\n\nЭто сообщение является внутренним напоминанием системы, не от пользователя. Не извиняйся, не комментируй — просто продолжай цикл tutor-режима.`;
   const { messageId } = await saveMessage(ctx, components.agent, {
     threadId,
     userId,
