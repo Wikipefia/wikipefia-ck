@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { Modal, EmptyState } from "@wikipefia/ui";
 import { useSearch } from "./search-provider";
 import { C } from "@/lib/theme";
 
@@ -53,38 +53,19 @@ export function SearchDialog({ open, onClose }: SearchDialogProps) {
         window.location.href = results[selectedIdx].route;
         onClose();
       }
-      if (e.key === "Escape") onClose();
+      // Escape is handled by Modal's built-in closeOnEscape — avoid double close.
     },
     [results, selectedIdx, onClose]
   );
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          className="fixed inset-0 z-50 flex items-start justify-center pt-[12vh]"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.1 }}
-        >
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0"
-            style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-            onClick={onClose}
-          />
-
-          {/* Dialog — wider */}
-          <motion.div
-            className="relative w-full max-w-2xl mx-4 border overflow-hidden shadow-xl"
-            style={{ backgroundColor: C.bgWhite, borderColor: C.borderLight }}
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.15 }}
-          >
-            {/* Header */}
+    <Modal
+      open={open}
+      onClose={onClose}
+      aria-label={t("search")}
+      className="max-w-2xl overflow-hidden"
+    >
+      {/* Header */}
             <div
               className="px-5 py-2.5 flex items-center justify-between"
               style={{ backgroundColor: C.headerBg, color: C.headerText }}
@@ -126,12 +107,12 @@ export function SearchDialog({ open, onClose }: SearchDialogProps) {
             {query.trim() && (
               <div className="max-h-96 overflow-y-auto">
                 {results.length === 0 ? (
-                  <p
-                    className="px-5 py-10 text-center text-base uppercase"
+                  <EmptyState
+                    className="text-base tracking-normal"
                     style={{ color: C.textMuted }}
                   >
                     {t("noResults")}
-                  </p>
+                  </EmptyState>
                 ) : (
                   results.map((entry, i) => (
                     <Link
@@ -183,9 +164,6 @@ export function SearchDialog({ open, onClose }: SearchDialogProps) {
                 </p>
               </div>
             )}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    </Modal>
   );
 }

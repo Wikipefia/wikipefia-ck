@@ -10,6 +10,7 @@ import {
 import { C } from "@wikipefia/mdx-renderer/theme";
 import { Button } from "./primitives/Button";
 import { IconButton } from "./primitives/IconButton";
+import { Textarea } from "@wikipefia/ui";
 import { ModelPicker } from "./ModelPicker";
 import { FilePart } from "./parts/FilePart";
 import { useEditAndRegenerate } from "../hooks/use-messages";
@@ -181,7 +182,7 @@ export function MessageEditor({
         outlineOffset: 4,
       }}
     >
-      <textarea
+      <Textarea
         ref={textareaRef}
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -195,7 +196,7 @@ export function MessageEditor({
           }
         }}
         rows={Math.min(12, Math.max(2, text.split("\n").length))}
-        className="w-full border px-3 py-2 text-[14px] resize-y outline-none"
+        className="px-3 py-2 text-[14px] resize-y"
         style={{
           fontFamily: "var(--font-serif)",
           borderColor: C.border,

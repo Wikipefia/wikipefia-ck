@@ -12,6 +12,7 @@ import type { AttachmentRef, ModelDef } from "../../types";
 import type { ModeDefinition } from "@wikipefia/chat/modes";
 import { Button } from "./primitives/Button";
 import { IconButton } from "./primitives/IconButton";
+import { Kbd } from "@wikipefia/ui";
 import { useUploadFile } from "../hooks/use-upload";
 import { FilePart } from "./parts/FilePart";
 import { ModePicker } from "./ModePicker";
@@ -270,12 +271,7 @@ export function MessageInput({
           ) : null}
         </div>
         <div className="flex items-center gap-2">
-          <span
-            className="text-[10px] uppercase tracking-wider"
-            style={{ color: C.textMuted, fontFamily: "var(--font-mono)" }}
-          >
-            Enter
-          </span>
+          <Kbd>Enter</Kbd>
           <Button
             variant="primary"
             size="sm"

@@ -1,5 +1,6 @@
 "use client";
 
+import { Badge } from "@wikipefia/ui";
 import { C } from "@/lib/theme";
 import type { SystemArticleManifest, TocEntry } from "@/lib/content/types";
 import type { Locale } from "@/lib/i18n/config";
@@ -25,12 +26,12 @@ export function SystemArticlePage({
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
       <div className="mb-8">
-        <span
-          className="text-[11px] font-bold px-2 py-0.5 uppercase tracking-wider"
+        <Badge
+          className="border-0 text-[11px] px-2 py-0.5 tracking-wider"
           style={{ backgroundColor: C.accent, color: "#fff" }}
         >
           System Article
-        </span>
+        </Badge>
         <h1 className="text-3xl md:text-5xl font-bold leading-tight tracking-tighter uppercase mt-4">
           {loc(article.config.name, locale)}
         </h1>

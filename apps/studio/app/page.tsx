@@ -1,46 +1,36 @@
 "use client";
 
-import {
-  useState,
-  useCallback,
-  useRef,
-  useEffect,
-} from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { useQuery, useAction } from "convex/react";
 import { api } from "@wikipefia/convex/api";
-import {
-  compileAction,
-  type CompileActionResult,
-} from "@/app/actions/compile";
+import { Badge, Button, Kbd } from "@wikipefia/ui";
+import { useAction, useQuery } from "convex/react";
+import { AnimatePresence, motion } from "motion/react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { type CompileActionResult, compileAction } from "@/app/actions/compile";
 import {
   CodeEditor,
   type CodeEditorHandle,
 } from "@/components/editor/code-editor";
-import { LivePreview } from "@/components/editor/live-preview";
-import type { PreviewError } from "@/lib/preview-error";
-import {
-  StatusBar,
-  type CompileStatus,
-} from "@/components/editor/status-bar";
 import { ComponentMenu } from "@/components/editor/component-menu";
 import { FrontmatterPanel } from "@/components/editor/frontmatter-panel";
-import { Sidebar } from "@/components/workspace/sidebar";
-import { TabBar } from "@/components/workspace/tab-bar";
+import { LivePreview } from "@/components/editor/live-preview";
+import { type CompileStatus, StatusBar } from "@/components/editor/status-bar";
+import { useTheme } from "@/components/shared/theme-provider";
 import { MetadataPanel } from "@/components/workspace/metadata-panel";
 import { ProjectPicker } from "@/components/workspace/project-picker";
-import { useTheme } from "@/components/shared/theme-provider";
-import { C } from "@/lib/theme";
+import { Sidebar } from "@/components/workspace/sidebar";
+import { TabBar } from "@/components/workspace/tab-bar";
 import {
-  type OpenTab,
-  type Subject,
-  type ProjectRecord,
-  getArticleTitle,
-  createTabId,
-  projectToSubject,
   articlePath,
+  createTabId,
+  getArticleTitle,
+  type OpenTab,
+  type ProjectRecord,
+  projectToSubject,
+  type Subject,
   splitFrontmatter,
 } from "@/lib/mock-data";
+import type { PreviewError } from "@/lib/preview-error";
+import { C } from "@/lib/theme";
 
 const DEBOUNCE_MS = 350;
 
@@ -124,9 +114,7 @@ export default function EditorPage() {
   // Compile errors carry their own line; render errors arrive via the
   // preview's onPreviewError callback. We keep them in separate fields
   // and merge them into the editor's `errorLine` prop downstream.
-  const [compileErrorLine, setCompileErrorLine] = useState<number | null>(
-    null,
-  );
+  const [compileErrorLine, setCompileErrorLine] = useState<number | null>(null);
   const [previewError, setPreviewError] = useState<PreviewError | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
   // Monotonically increasing per-call id. Each compile invocation
@@ -155,7 +143,8 @@ export default function EditorPage() {
     : undefined;
   // Compile errors and runtime preview errors are mutually exclusive
   // (no compiled output → no render). Whichever exists wins.
-  const editorErrorLine = compileErrorLine ?? previewError?.location?.line ?? null;
+  const editorErrorLine =
+    compileErrorLine ?? previewError?.location?.line ?? null;
   const editorErrorMessage = error ?? previewError?.message ?? null;
   const ps = currentProject ? projectStates[currentProject] : undefined;
   const tabs = ps?.tabs ?? [];
@@ -416,7 +405,8 @@ export default function EditorPage() {
     (body: string) => {
       if (!activeTabId) return;
       // Read current frontmatter from stored content
-      const current = projectStates[currentProject!]?.tabContents[activeTabId] ?? "";
+      const current =
+        projectStates[currentProject!]?.tabContents[activeTabId] ?? "";
       const { frontmatter } = splitFrontmatter(current);
       const full = frontmatter + body;
       updatePS((ps) => ({
@@ -478,8 +468,7 @@ export default function EditorPage() {
         // Compile after content arrives
         doCompile(content);
       } catch (e) {
-        const errMsg =
-          e instanceof Error ? e.message : "Failed to fetch file";
+        const errMsg = e instanceof Error ? e.message : "Failed to fetch file";
         updatePS((ps) => ({
           ...ps,
           tabs: ps.tabs.map((t) =>
@@ -527,9 +516,7 @@ export default function EditorPage() {
         let newActive = ps.activeTabId;
         if (tabId === ps.activeTabId) {
           newActive =
-            next.length > 0
-              ? next[Math.min(idx, next.length - 1)].id
-              : null;
+            next.length > 0 ? next[Math.min(idx, next.length - 1)].id : null;
         }
         const { [tabId]: _, ...rest } = ps.tabContents;
         return { tabs: next, activeTabId: newActive, tabContents: rest };
@@ -566,7 +553,10 @@ export default function EditorPage() {
       if (!isDragging.current || !containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
       setSplitPos(
-        Math.min(80, Math.max(20, ((ev.clientX - rect.left) / rect.width) * 100)),
+        Math.min(
+          80,
+          Math.max(20, ((ev.clientX - rect.left) / rect.width) * 100),
+        ),
       );
     };
     const handleUp = () => {
@@ -588,7 +578,9 @@ export default function EditorPage() {
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
       const handleMove = (ev: MouseEvent) =>
-        setSidebarWidth(Math.min(400, Math.max(180, startWidth + ev.clientX - startX)));
+        setSidebarWidth(
+          Math.min(400, Math.max(180, startWidth + ev.clientX - startX)),
+        );
       const handleUp = () => {
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
@@ -674,33 +666,26 @@ export default function EditorPage() {
               &#x25C7;
             </div>
 
-            <button
+            <Button
               type="button"
               onClick={() => setPickerOpen(true)}
-              className="px-6 py-2.5 text-[11px] font-bold uppercase tracking-[0.12em] cursor-pointer transition-colors mb-4"
+              variant="primary"
+              size="lg"
+              className="tracking-[0.12em] mb-4"
               style={{
-                fontFamily: "var(--font-mono)",
                 backgroundColor: C.accent,
+                borderColor: C.accent,
                 color: "#fff",
               }}
             >
               Open project
-            </button>
+            </Button>
 
             <div
               className="text-[9px] tracking-wider mb-6"
               style={{ fontFamily: "var(--font-mono)", color: C.textMuted }}
             >
-              or press{" "}
-              <kbd
-                className="px-1.5 py-0.5 border text-[9px]"
-                style={{
-                  borderColor: C.borderLight,
-                  fontFamily: "var(--font-mono)",
-                }}
-              >
-                &#x2318;O
-              </kbd>
+              or press <Kbd className="text-[9px]">&#x2318;O</Kbd>
             </div>
 
             {/* Loading / discover state */}
@@ -717,15 +702,13 @@ export default function EditorPage() {
                   : "Loading projects\u2026"}
               </div>
             ) : (
-              <button
+              <Button
                 type="button"
                 onClick={handleRefreshRepos}
-                className="text-[9px] font-bold uppercase tracking-[0.1em] px-3 py-1 border cursor-pointer transition-colors mt-2"
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  color: C.textMuted,
-                  borderColor: C.borderLight,
-                }}
+                variant="outline"
+                size="sm"
+                className="text-[9px] tracking-[0.1em] mt-2 hover:opacity-100"
+                style={{ color: C.textMuted, borderColor: C.borderLight }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.color = C.accent;
                   e.currentTarget.style.borderColor = C.accent;
@@ -736,7 +719,7 @@ export default function EditorPage() {
                 }}
               >
                 Refresh repos
-              </button>
+              </Button>
             )}
 
             {/* Recent projects */}
@@ -1207,16 +1190,9 @@ function WelcomeHeader({
         >
           Wikipefia Studio
         </span>
-        <span
-          className="text-[9px] font-bold uppercase tracking-[0.15em] px-2 py-0.5"
-          style={{
-            color: C.accent,
-            border: `1px solid ${C.accent}`,
-            fontFamily: "var(--font-mono)",
-          }}
-        >
+        <Badge variant="accent" className="text-[9px] tracking-[0.15em]">
           MDX Editor
-        </span>
+        </Badge>
       </div>
       <button
         type="button"

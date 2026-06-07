@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { Badge, Kbd } from "@wikipefia/ui";
 import { C, getSubjectTheme } from "@/lib/theme";
 import { PageShell } from "@/components/shared/page-shell";
 import { SearchDialog } from "@/components/search/search-dialog";
@@ -91,12 +92,12 @@ function HeroSearch() {
           >
             {t("heroSearchPlaceholder")}
           </span>
-          <span
-            className="text-[10px] border px-1 py-px ml-auto"
+          <Kbd
+            className="ml-auto"
             style={{ borderColor: C.borderLight, color: C.textMuted }}
           >
             ⌘K
-          </span>
+          </Kbd>
         </div>
       </div>
       <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
@@ -224,15 +225,16 @@ export function HomePage({ data, locale }: { data: HomeData; locale: string }) {
                     transition={{ delay: i * 0.1 }}
                   >
                     <div className="flex items-center gap-2 mb-3">
-                      <span
-                        className="text-[10px] font-bold px-1.5 py-0.5 uppercase tracking-wider"
+                      <Badge
+                        size="sm"
+                        className="border-0 tracking-wider"
                         style={{
                           backgroundColor: `${C.accent}`,
                           color: "#fff",
                         }}
                       >
                         {t("guide")}
-                      </span>
+                      </Badge>
                     </div>
                     <h3 className="text-lg font-bold uppercase mb-2 group-hover:underline">
                       {item.name}

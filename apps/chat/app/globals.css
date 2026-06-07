@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "@wikipefia/ui/styles.css";
+@source "../../../packages/ui/src";
 @source "../../../packages/chat/src";
 @source "../../../packages/mdx-renderer/src";
 
@@ -7,20 +9,14 @@
   --color-foreground: var(--foreground);
 }
 
+/*
+ * Core palette + Tailwind color mapping + shared base utilities live in
+ * @wikipefia/ui/styles.css. Only app-specific tokens remain here.
+ */
+
 :root {
   --background: #fafafa;
   --foreground: #111111;
-
-  --c-bg: #f5f5f4;
-  --c-bg-white: #ffffff;
-  --c-text: #1a1a1a;
-  --c-text-muted: #6b6b6b;
-  --c-accent: #2563EB;
-  --c-border: #d4d4d4;
-  --c-border-light: #e5e5e5;
-
-  --c-header-bg: #1a1a1a;
-  --c-header-text: #fafafa;
 
   --c-content-text: #333333;
   --c-content-heading: #111111;
@@ -35,17 +31,6 @@
 .dark {
   --background: #0e0e0e;
   --foreground: #d4d4d4;
-
-  --c-bg: #141414;
-  --c-bg-white: #1a1a1a;
-  --c-text: #d4d4d4;
-  --c-text-muted: #777777;
-  --c-accent: #60A5FA;
-  --c-border: #333333;
-  --c-border-light: #252525;
-
-  --c-header-bg: #1e1e1e;
-  --c-header-text: #d4d4d4;
 
   --c-content-text: #b8b8b8;
   --c-content-heading: #d4d4d4;

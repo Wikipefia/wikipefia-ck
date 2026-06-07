@@ -3,6 +3,7 @@
 import { useState, useCallback, type KeyboardEvent } from "react";
 import { motion } from "framer-motion";
 import { C } from "@wikipefia/mdx-renderer/theme";
+import { Button, Input, Textarea } from "@wikipefia/ui";
 import { useSubmitToolResponse } from "../../hooks/use-messages";
 import { InlineMarkdown } from "./inline-markdown";
 
@@ -307,20 +308,19 @@ function MultipleChoiceBody({
       })}
       {!isReadOnly ? (
         <div className="flex items-center justify-end mt-1">
-          <button
+          <Button
             type="button"
             onClick={() => pick && onSubmit(pick)}
             disabled={!pick || submitting}
-            className="border-2 h-[32px] px-4 text-[10px] font-bold uppercase tracking-[0.1em] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="border-2 h-[32px] px-4 text-[10px]"
             style={{
-              fontFamily: "var(--font-mono)",
               borderColor: pick ? C.accent : C.border,
               backgroundColor: pick ? C.accent : C.bgWhite,
               color: pick ? "#fff" : C.textMuted,
             }}
           >
             {submitting ? "Submitting…" : "Submit →"}
-          </button>
+          </Button>
         </div>
       ) : null}
     </div>
@@ -354,7 +354,7 @@ function NumericBody({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
-        <input
+        <Input
           type="text"
           inputMode="decimal"
           value={text}
@@ -367,7 +367,7 @@ function NumericBody({
               if (!isReadOnly) onSubmit(parsed);
             }
           }}
-          className="flex-1 border px-3 py-2 text-[15px] outline-none disabled:opacity-60"
+          className="flex-1 px-3 py-2 h-auto text-[15px]"
           style={{
             fontFamily: "var(--font-mono)",
             borderColor: C.border,
@@ -399,20 +399,19 @@ function NumericBody({
         </div>
       ) : (
         <div className="flex items-center justify-end mt-1">
-          <button
+          <Button
             type="button"
             onClick={() => onSubmit(parsed)}
             disabled={!valid || submitting}
-            className="border-2 h-[32px] px-4 text-[10px] font-bold uppercase tracking-[0.1em] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="border-2 h-[32px] px-4 text-[10px]"
             style={{
-              fontFamily: "var(--font-mono)",
               borderColor: valid ? C.accent : C.border,
               backgroundColor: valid ? C.accent : C.bgWhite,
               color: valid ? "#fff" : C.textMuted,
             }}
           >
             {submitting ? "Submitting…" : "Submit →"}
-          </button>
+          </Button>
         </div>
       )}
     </div>
@@ -446,7 +445,7 @@ function FreeTextBody({
 
   return (
     <div className="flex flex-col gap-2">
-      <textarea
+      <Textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         disabled={isReadOnly || submitting}
@@ -458,7 +457,7 @@ function FreeTextBody({
             onSubmit(text.trim());
           }
         }}
-        className="border px-3 py-2 text-[14px] resize-y outline-none disabled:opacity-60"
+        className="px-3 py-2 text-[14px] resize-y"
         style={{
           fontFamily: "var(--font-serif)",
           borderColor: C.border,
@@ -479,20 +478,19 @@ function FreeTextBody({
               ? `${wordCount} / ≥${minWordsResolved} words`
               : `${wordCount} words`}
           </span>
-          <button
+          <Button
             type="button"
             onClick={() => onSubmit(text.trim())}
             disabled={!canSubmit}
-            className="border-2 h-[32px] px-4 text-[10px] font-bold uppercase tracking-[0.1em] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="border-2 h-[32px] px-4 text-[10px]"
             style={{
-              fontFamily: "var(--font-mono)",
               borderColor: canSubmit ? C.accent : C.border,
               backgroundColor: canSubmit ? C.accent : C.bgWhite,
               color: canSubmit ? "#fff" : C.textMuted,
             }}
           >
             {submitting ? "Submitting…" : "Submit →"}
-          </button>
+          </Button>
         </div>
       ) : null}
     </div>
