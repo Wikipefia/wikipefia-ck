@@ -1,9 +1,9 @@
 "use client";
 
+import { Badge, ThemeToggle } from "@wikipefia/ui";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { useTheme } from "@/components/shared/theme-provider";
 import { C } from "@/lib/theme";
 
 interface NavItem {
@@ -29,7 +29,6 @@ function isActive(pathname: string, item: NavItem): boolean {
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { resolvedTheme, toggleTheme } = useTheme();
 
   return (
     <div
@@ -48,31 +47,14 @@ export function AdminShell({ children }: { children: ReactNode }) {
           >
             Wikipefia Admin
           </span>
-          <span
-            className="text-[9px] font-bold uppercase tracking-[0.15em] px-2 py-0.5"
-            style={{
-              color: C.accent,
-              border: `1px solid ${C.accent}`,
-              fontFamily: "var(--font-mono)",
-            }}
-          >
+          <Badge variant="accent" className="text-[9px] tracking-[0.15em]">
             Console
-          </span>
+          </Badge>
         </div>
-        <button
-          type="button"
-          onClick={toggleTheme}
-          aria-label="Toggle theme"
-          className="h-[30px] w-[30px] flex items-center justify-center border cursor-pointer transition-colors"
-          style={{
-            borderColor: "rgba(255,255,255,0.15)",
-            color: C.headerText,
-          }}
-        >
-          <span className="text-[14px]">
-            {resolvedTheme === "dark" ? "☀" : "☾"}
-          </span>
-        </button>
+        <ThemeToggle
+          size="icon-sm"
+          className="border-invert-fg/20 text-invert-fg"
+        />
       </header>
 
       {/* Body */}

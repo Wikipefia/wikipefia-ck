@@ -1,13 +1,15 @@
 "use client";
 
 import { api } from "@wikipefia/convex/api";
+import { Badge, Button, Card, EmptyState } from "@wikipefia/ui";
 import { useAction, useQuery } from "convex/react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Badge, Btn, PageHeader, Panel, Stat } from "@/components/ui/kit";
+import { PageHeader, Stat } from "@/components/ui/kit";
 import {
   checkConfigIntegrity,
   type IntegrityStatus,
+  STATUS_BADGE,
   STATUS_META,
 } from "@/lib/config-integrity";
 import { C } from "@/lib/theme";
@@ -64,28 +66,28 @@ export default function OverviewPage() {
         title="Overview"
         subtitle="Project health at a glance"
         actions={
-          <Btn
+          <Button
             variant="primary"
             onClick={handleDiscover}
             disabled={discovering}
           >
             {discovering ? "Discovering…" : "Discover repos"}
-          </Btn>
+          </Button>
         }
       />
 
       {projects === undefined ? (
-        <LoadingRow />
+        <EmptyState>Loading…</EmptyState>
       ) : (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+          <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4">
             <Stat label="Subjects" value={stats.byType.subject} accent />
             <Stat label="Teachers" value={stats.byType.teacher} />
             <Stat label="System" value={stats.byType.system} />
             <Stat label="Repositories" value={projects.length} />
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+          <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
             <Stat label="Config OK" value={stats.byStatus.ok} />
             <Stat label="Warnings" value={stats.byStatus.warnings} />
             <Stat label="Errors" value={stats.byStatus.errors} />
@@ -93,71 +95,52 @@ export default function OverviewPage() {
           </div>
 
           <h2
-            className="text-[10px] font-bold uppercase tracking-[0.15em] mb-3"
-            style={{ fontFamily: "var(--font-mono)", color: C.textMuted }}
+            className="mb-3 text-[10px] font-bold uppercase tracking-[0.15em] text-muted"
+            style={{ fontFamily: "var(--font-mono)" }}
           >
             Needs attention
           </h2>
 
           {stats.attention.length === 0 ? (
-            <Panel className="px-4 py-6 text-center">
+            <Card className="px-4 py-6 text-center">
               <span
-                className="text-[10px] tracking-wider"
-                style={{ fontFamily: "var(--font-mono)", color: C.textMuted }}
+                className="text-[10px] tracking-wider text-muted"
+                style={{ fontFamily: "var(--font-mono)" }}
               >
                 {projects.length === 0
                   ? "No repositories yet — run Discover repos."
                   : "All configs are valid. ✦"}
               </span>
-            </Panel>
+            </Card>
           ) : (
-            <Panel>
-              {stats.attention.map((a, i) => {
-                const meta = STATUS_META[a.status];
-                return (
-                  <Link
-                    key={a.slug}
-                    href={`/repositories?project=${a.slug}`}
-                    className="flex items-center justify-between px-4 py-3 transition-colors"
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      borderTop:
-                        i === 0 ? "none" : `1px solid ${C.borderLight}`,
-                    }}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Badge color={meta.color}>{meta.label}</Badge>
-                      <span
-                        className="text-[12px] font-semibold truncate"
-                        style={{ color: C.text }}
-                      >
-                        {a.name}
-                      </span>
-                    </div>
-                    <span
-                      className="text-[10px] shrink-0"
-                      style={{ color: C.textMuted }}
-                    >
-                      {a.count} issue{a.count === 1 ? "" : "s"}
+            <Card>
+              {stats.attention.map((a, i) => (
+                <Link
+                  key={a.slug}
+                  href={`/repositories?project=${a.slug}`}
+                  className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-bg"
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    borderTop: i === 0 ? "none" : `1px solid ${C.borderLight}`,
+                  }}
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <Badge variant={STATUS_BADGE[a.status]}>
+                      {STATUS_META[a.status].label}
+                    </Badge>
+                    <span className="truncate text-[12px] font-semibold text-fg">
+                      {a.name}
                     </span>
-                  </Link>
-                );
-              })}
-            </Panel>
+                  </div>
+                  <span className="shrink-0 text-[10px] text-muted">
+                    {a.count} issue{a.count === 1 ? "" : "s"}
+                  </span>
+                </Link>
+              ))}
+            </Card>
           )}
         </>
       )}
-    </div>
-  );
-}
-
-function LoadingRow() {
-  return (
-    <div
-      className="text-[10px] font-bold uppercase tracking-wider py-10 text-center"
-      style={{ fontFamily: "var(--font-mono)", color: C.textMuted }}
-    >
-      Loading…
     </div>
   );
 }

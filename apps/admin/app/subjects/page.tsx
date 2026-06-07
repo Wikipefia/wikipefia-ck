@@ -1,10 +1,17 @@
 "use client";
 
 import { api } from "@wikipefia/convex/api";
+import {
+  Badge,
+  type BadgeProps,
+  Button,
+  Card,
+  SegmentedControl,
+} from "@wikipefia/ui";
 import { useMutation, useQuery } from "convex/react";
 import { useState } from "react";
 import { SubjectDialog } from "@/components/subjects/subject-dialog";
-import { Badge, Btn, EmptyState, PageHeader, Panel } from "@/components/ui/kit";
+import { Empty, PageHeader } from "@/components/ui/kit";
 import { C } from "@/lib/theme";
 import {
   PROJECT_TYPE_LABELS,
@@ -13,24 +20,27 @@ import {
 } from "@/lib/types";
 
 const mono = { fontFamily: "var(--font-mono)" } as const;
-const FILTERS: Array<ProjectType | "all"> = [
-  "all",
-  "subject",
-  "teacher",
-  "system",
+
+type Filter = ProjectType | "all";
+
+const FILTER_OPTIONS: Array<{ value: Filter; label: string }> = [
+  { value: "all", label: "All" },
+  { value: "subject", label: "Subject" },
+  { value: "teacher", label: "Teacher" },
+  { value: "system", label: "System" },
 ];
 
-const TYPE_COLORS: Record<ProjectType, string> = {
-  subject: "#2563EB",
-  teacher: "#7C3AED",
-  system: "#059669",
+const TYPE_BADGE: Record<ProjectType, NonNullable<BadgeProps["variant"]>> = {
+  subject: "accent",
+  teacher: "solid",
+  system: "success",
 };
 
 export default function SubjectsPage() {
   const projects = useQuery(api.projects.list);
   const remove = useMutation(api.projects.remove);
 
-  const [filter, setFilter] = useState<ProjectType | "all">("all");
+  const [filter, setFilter] = useState<Filter>("all");
   const [dialog, setDialog] = useState<
     { mode: "create" } | { mode: "edit"; project: ProjectDoc } | null
   >(null);
@@ -59,40 +69,33 @@ export default function SubjectsPage() {
         title="Subjects"
         subtitle="Registered projects across all content types"
         actions={
-          <Btn variant="primary" onClick={() => setDialog({ mode: "create" })}>
+          <Button
+            variant="primary"
+            onClick={() => setDialog({ mode: "create" })}
+          >
             New project
-          </Btn>
+          </Button>
         }
       />
 
-      <div className="flex items-center gap-1.5 mb-4">
-        {FILTERS.map((f) => (
-          <button
-            key={f}
-            type="button"
-            onClick={() => setFilter(f)}
-            className="px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] border cursor-pointer transition-colors"
-            style={{
-              ...mono,
-              color: filter === f ? "#fff" : C.textMuted,
-              backgroundColor: filter === f ? C.accent : "transparent",
-              borderColor: filter === f ? C.accent : C.borderLight,
-            }}
-          >
-            {f}
-          </button>
-        ))}
+      <div className="mb-4">
+        <SegmentedControl
+          options={FILTER_OPTIONS}
+          value={filter}
+          onChange={setFilter}
+          className="w-fit"
+        />
       </div>
 
       {projects === undefined ? (
-        <LoadingRow />
+        <Empty title="Loading…" />
       ) : filtered.length === 0 ? (
-        <EmptyState
+        <Empty
           title="No projects"
           hint="Create one, or run Discover repos on the Overview page to import from GitHub."
         />
       ) : (
-        <Panel>
+        <Card>
           {filtered.map((p, i) => (
             <div
               key={p._id}
@@ -101,39 +104,41 @@ export default function SubjectsPage() {
                 borderTop: i === 0 ? "none" : `1px solid ${C.borderLight}`,
               }}
             >
-              <div className="flex items-center gap-3 min-w-0">
-                <Badge color={TYPE_COLORS[p.type]}>
+              <div className="flex min-w-0 items-center gap-3">
+                <Badge variant={TYPE_BADGE[p.type]}>
                   {PROJECT_TYPE_LABELS[p.type]}
                 </Badge>
                 <div className="min-w-0">
                   <div
-                    className="text-[12px] font-semibold truncate"
-                    style={{ ...mono, color: C.text }}
+                    className="truncate text-[12px] font-semibold text-fg"
+                    style={mono}
                   >
                     {p.name}
                   </div>
-                  <div
-                    className="text-[9px] truncate"
-                    style={{ ...mono, color: C.textMuted }}
-                  >
+                  <div className="truncate text-[9px] text-muted" style={mono}>
                     {p.githubRepo} · {p.branch}
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Btn
-                  variant="ghost"
+              <div className="flex shrink-0 items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setDialog({ mode: "edit", project: p })}
                 >
                   Edit
-                </Btn>
-                <Btn variant="danger" onClick={() => handleDelete(p)}>
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => handleDelete(p)}
+                >
                   Delete
-                </Btn>
+                </Button>
               </div>
             </div>
           ))}
-        </Panel>
+        </Card>
       )}
 
       {dialog && (
@@ -143,17 +148,6 @@ export default function SubjectsPage() {
           onClose={() => setDialog(null)}
         />
       )}
-    </div>
-  );
-}
-
-function LoadingRow() {
-  return (
-    <div
-      className="text-[10px] font-bold uppercase tracking-wider py-10 text-center"
-      style={{ ...mono, color: C.textMuted }}
-    >
-      Loading…
     </div>
   );
 }

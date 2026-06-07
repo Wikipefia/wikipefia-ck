@@ -1,10 +1,11 @@
 "use client";
 
 import { api } from "@wikipefia/convex/api";
+import { Button, Card } from "@wikipefia/ui";
 import { useAction, useQuery } from "convex/react";
 import { useEffect, useState } from "react";
 import { ConfigIntegrityPanel } from "@/components/repositories/config-integrity-panel";
-import { Btn, EmptyState, PageHeader, Panel } from "@/components/ui/kit";
+import { Empty, PageHeader } from "@/components/ui/kit";
 import { checkConfigIntegrity, STATUS_META } from "@/lib/config-integrity";
 import { C } from "@/lib/theme";
 import type { ProjectDoc } from "@/lib/types";
@@ -66,27 +67,27 @@ export default function RepositoriesPage() {
         title="Repositories"
         subtitle="Sync content repos and verify config integrity"
         actions={
-          <Btn
+          <Button
             variant="primary"
             onClick={handleDiscover}
             disabled={discovering}
           >
             {discovering ? "Discovering…" : "Discover repos"}
-          </Btn>
+          </Button>
         }
       />
 
       {projects === undefined ? (
-        <LoadingRow />
+        <Empty title="Loading…" />
       ) : projects.length === 0 ? (
-        <EmptyState
+        <Empty
           title="No repositories"
           hint="Run Discover repos to import content repositories from the GitHub App installation."
         />
       ) : (
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid gap-4 md:grid-cols-2">
           {/* Repo list */}
-          <Panel className="self-start">
+          <Card className="self-start">
             {projects.map((p, i) => {
               const meta = STATUS_META[checkConfigIntegrity(p).status];
               const isSel = p.slug === selected;
@@ -103,68 +104,58 @@ export default function RepositoriesPage() {
                   <button
                     type="button"
                     onClick={() => setSelected(p.slug)}
-                    className="flex items-center gap-2.5 min-w-0 flex-1 text-left cursor-pointer bg-transparent border-none"
+                    className="flex min-w-0 flex-1 items-center gap-2.5 border-none bg-transparent text-left"
                   >
                     <span
-                      className="w-1.5 h-1.5 shrink-0"
+                      className="h-1.5 w-1.5 shrink-0"
                       style={{ backgroundColor: meta.color }}
                       title={meta.label}
                     />
                     <span className="min-w-0">
                       <span
-                        className="block text-[12px] font-semibold truncate"
-                        style={{ ...mono, color: C.text }}
+                        className="block truncate text-[12px] font-semibold text-fg"
+                        style={mono}
                       >
                         {p.name}
                       </span>
                       <span
-                        className="block text-[9px] truncate"
-                        style={{ ...mono, color: C.textMuted }}
+                        className="block truncate text-[9px] text-muted"
+                        style={mono}
                       >
                         {p.githubRepo}
                       </span>
                     </span>
                   </button>
-                  <Btn
-                    variant="ghost"
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => handleSync(p.slug)}
                     disabled={syncing.has(p.slug)}
                   >
                     {syncing.has(p.slug) ? "Syncing…" : "Sync"}
-                  </Btn>
+                  </Button>
                 </div>
               );
             })}
-          </Panel>
+          </Card>
 
           {/* Integrity panel */}
           <div>
             {selectedProject ? (
               <ConfigIntegrityPanel project={selectedProject} />
             ) : (
-              <Panel className="px-4 py-10 text-center">
+              <Card className="px-4 py-10 text-center">
                 <span
-                  className="text-[10px] tracking-wider"
-                  style={{ ...mono, color: C.textMuted }}
+                  className="text-[10px] tracking-wider text-muted"
+                  style={mono}
                 >
                   Select a repository to inspect its config.
                 </span>
-              </Panel>
+              </Card>
             )}
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function LoadingRow() {
-  return (
-    <div
-      className="text-[10px] font-bold uppercase tracking-wider py-10 text-center"
-      style={{ ...mono, color: C.textMuted }}
-    >
-      Loading…
     </div>
   );
 }

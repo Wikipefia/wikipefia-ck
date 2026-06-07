@@ -136,8 +136,19 @@ export const STATUS_META: Record<
   IntegrityStatus,
   { label: string; color: string }
 > = {
-  ok: { label: "OK", color: "#059669" },
-  warnings: { label: "Warnings", color: "#D97706" },
-  errors: { label: "Errors", color: "#DC2626" },
-  unsynced: { label: "Not synced", color: "#6b6b6b" },
+  ok: { label: "OK", color: "var(--c-success)" },
+  warnings: { label: "Warnings", color: "var(--c-warning)" },
+  errors: { label: "Errors", color: "var(--c-danger)" },
+  unsynced: { label: "Not synced", color: "var(--c-text-muted)" },
+};
+
+/** Maps an integrity status to a @wikipefia/ui `Badge` variant. */
+export const STATUS_BADGE: Record<
+  IntegrityStatus,
+  "success" | "warning" | "danger" | "muted"
+> = {
+  ok: "success",
+  warnings: "warning",
+  errors: "danger",
+  unsynced: "muted",
 };

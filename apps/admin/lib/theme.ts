@@ -1,1 +1,1 @@
-export { C } from "@wikipefia/mdx-renderer";
+export { C, font } from "@wikipefia/ui";

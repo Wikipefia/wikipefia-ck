@@ -1,9 +1,10 @@
 "use client";
 
-import { Badge, Panel } from "@/components/ui/kit";
+import { Badge, type BadgeProps, Card } from "@wikipefia/ui";
 import {
   checkConfigIntegrity,
   type DiagnosticSeverity,
+  STATUS_BADGE,
   STATUS_META,
 } from "@/lib/config-integrity";
 import { C } from "@/lib/theme";
@@ -11,34 +12,35 @@ import type { ProjectDoc } from "@/lib/types";
 
 const mono = { fontFamily: "var(--font-mono)" } as const;
 
-const SEVERITY_COLOR: Record<DiagnosticSeverity, string> = {
-  error: "#DC2626",
-  warning: "#D97706",
+const SEVERITY_BADGE: Record<
+  DiagnosticSeverity,
+  NonNullable<BadgeProps["variant"]>
+> = {
+  error: "danger",
+  warning: "warning",
 };
 
 export function ConfigIntegrityPanel({ project }: { project: ProjectDoc }) {
   const report = checkConfigIntegrity(project);
-  const meta = STATUS_META[report.status];
 
   return (
-    <Panel>
+    <Card>
       <div
-        className="px-4 py-3 border-b flex items-center justify-between"
+        className="flex items-center justify-between border-b px-4 py-3"
         style={{ borderColor: C.borderLight }}
       >
-        <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex min-w-0 items-center gap-2.5">
           <span
-            className="text-[12px] font-semibold truncate"
-            style={{ ...mono, color: C.text }}
+            className="truncate text-[12px] font-semibold text-fg"
+            style={mono}
           >
             {project.name}
           </span>
-          <Badge color={meta.color}>{meta.label}</Badge>
+          <Badge variant={STATUS_BADGE[report.status]}>
+            {STATUS_META[report.status].label}
+          </Badge>
         </div>
-        <span
-          className="text-[9px] shrink-0"
-          style={{ ...mono, color: C.textMuted }}
-        >
+        <span className="shrink-0 text-[9px] text-muted" style={mono}>
           {project.lastSynced
             ? `synced ${new Date(project.lastSynced).toLocaleString()}`
             : "never synced"}
@@ -47,15 +49,15 @@ export function ConfigIntegrityPanel({ project }: { project: ProjectDoc }) {
 
       {report.status === "unsynced" ? (
         <p
-          className="px-4 py-6 text-[10px] tracking-wider text-center"
-          style={{ ...mono, color: C.textMuted }}
+          className="px-4 py-6 text-center text-[10px] tracking-wider text-muted"
+          style={mono}
         >
           Sync this repository to validate its config.json.
         </p>
       ) : report.diagnostics.length === 0 ? (
         <p
-          className="px-4 py-6 text-[10px] tracking-wider text-center"
-          style={{ ...mono, color: "#059669" }}
+          className="px-4 py-6 text-center text-[10px] tracking-wider text-success"
+          style={mono}
         >
           config.json is valid and all referenced articles exist. ✦
         </p>
@@ -64,32 +66,22 @@ export function ConfigIntegrityPanel({ project }: { project: ProjectDoc }) {
           {report.diagnostics.map((d, i) => (
             <li
               key={`${d.category}-${i}`}
-              className="px-4 py-2.5 flex items-start gap-3"
+              className="flex items-start gap-3 px-4 py-2.5"
               style={{
                 borderTop: i === 0 ? "none" : `1px solid ${C.borderLight}`,
               }}
             >
-              <span
-                className="text-[7px] font-bold uppercase tracking-[0.12em] mt-0.5 px-1 py-0.5 border shrink-0"
-                style={{
-                  ...mono,
-                  color: SEVERITY_COLOR[d.severity],
-                  borderColor: SEVERITY_COLOR[d.severity],
-                }}
-              >
+              <Badge variant={SEVERITY_BADGE[d.severity]} size="sm">
                 {d.severity}
-              </span>
+              </Badge>
               <div className="min-w-0">
                 <span
-                  className="text-[8px] font-bold uppercase tracking-[0.12em] mr-2"
-                  style={{ ...mono, color: C.textMuted }}
+                  className="mr-2 text-[8px] font-bold uppercase tracking-[0.12em] text-muted"
+                  style={mono}
                 >
                   {d.category}
                 </span>
-                <span
-                  className="text-[11px]"
-                  style={{ ...mono, color: C.text }}
-                >
+                <span className="text-[11px] text-fg" style={mono}>
                   {d.message}
                 </span>
               </div>
@@ -97,6 +89,6 @@ export function ConfigIntegrityPanel({ project }: { project: ProjectDoc }) {
           ))}
         </ul>
       )}
-    </Panel>
+    </Card>
   );
 }
