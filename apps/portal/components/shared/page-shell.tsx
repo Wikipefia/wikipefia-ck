@@ -3,10 +3,10 @@
 import { useState, useEffect, Fragment } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { ThemeToggle } from "@wikipefia/ui";
 import { C } from "@/lib/theme";
 import { SearchDialog } from "@/components/search/search-dialog";
 import { LocaleSwitcher } from "@/components/navigation/locale-switcher";
-import { useTheme } from "@/components/shared/theme-provider";
 
 // ── Types ──────────────────────────────────────────────
 
@@ -19,39 +19,6 @@ interface PageShellProps {
   children: React.ReactNode;
   breadcrumbs?: BreadcrumbItem[];
   locale: string;
-}
-
-// ── Theme Toggle ──────────────────────────────────────
-
-function ThemeToggle() {
-  const { resolvedTheme, toggleTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  const t = useTranslations("common");
-
-  useEffect(() => setMounted(true), []);
-
-  if (!mounted) {
-    return (
-      <div
-        className="h-[34px] w-[34px] border flex items-center justify-center"
-        style={{ borderColor: C.borderLight }}
-      />
-    );
-  }
-
-  return (
-    <button
-      onClick={toggleTheme}
-      className="h-[34px] w-[34px] border flex items-center justify-center cursor-pointer transition-colors"
-      style={{ borderColor: C.borderLight, color: C.textMuted }}
-      title={resolvedTheme === "dark" ? t("switchToLight") : t("switchToDark")}
-      aria-label={resolvedTheme === "dark" ? t("switchToLight") : t("switchToDark")}
-    >
-      <span className="text-sm theme-toggle-icon" key={resolvedTheme}>
-        {resolvedTheme === "dark" ? "☀" : "●"}
-      </span>
-    </button>
-  );
 }
 
 // ── PageShell ──────────────────────────────────────────

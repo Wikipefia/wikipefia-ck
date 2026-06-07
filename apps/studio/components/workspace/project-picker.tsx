@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { motion } from "motion/react";
+import { Modal } from "@wikipefia/ui";
 import { C } from "@/lib/theme";
 import type { ProjectRecord } from "@/lib/mock-data";
 
@@ -81,23 +81,7 @@ export function ProjectPicker({
   let itemIndex = 0;
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh]"
-      onClick={onClose}
-    >
-      <div
-        className="absolute inset-0"
-        style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-      />
-
-      <motion.div
-        initial={{ opacity: 0, y: -8, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.12 }}
-        onClick={(e: React.MouseEvent) => e.stopPropagation()}
-        className="relative w-full max-w-md border shadow-2xl"
-        style={{ backgroundColor: C.bgWhite, borderColor: C.border }}
-      >
+    <Modal open onClose={onClose} align="top" className="max-w-md" zIndex={100}>
         <div
           className="px-4 py-3 border-b"
           style={{ borderColor: C.borderLight }}
@@ -170,8 +154,7 @@ export function ProjectPicker({
             &uarr;&darr; navigate &middot; &#x23CE; open &middot; esc close
           </span>
         </div>
-      </motion.div>
-    </div>
+    </Modal>
   );
 }
 

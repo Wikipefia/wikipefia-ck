@@ -37,6 +37,8 @@ function copySearchIndexes() {
 copySearchIndexes();
 
 const nextConfig: NextConfig = {
+  // Workspace packages that ship raw TS — must be transpiled.
+  transpilePackages: ["@wikipefia/mdx-renderer", "@wikipefia/ui"],
   // Ensure .mjs files from .content-build can be loaded
   experimental: {
     serverActions: {
