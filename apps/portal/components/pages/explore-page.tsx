@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { Badge, IconButton, SegmentedControl } from "@wikipefia/ui";
 import { C, getSubjectTheme } from "@/lib/theme";
 import { PageShell } from "@/components/shared/page-shell";
 import type {
@@ -21,13 +22,14 @@ function LocalePills({ locales }: { locales: string[] }) {
   return (
     <div className="flex gap-1">
       {locales.map((l) => (
-        <span
+        <Badge
           key={l}
-          className="text-[9px] font-bold uppercase px-1 py-px border"
+          size="sm"
+          className="px-1 py-px tracking-normal"
           style={{ borderColor: C.borderLight, color: C.textMuted }}
         >
           {l}
-        </span>
+        </Badge>
       ))}
     </div>
   );
@@ -107,8 +109,11 @@ function SubjectRow({ sub, idx }: { sub: ExploreSubject; idx: number }) {
             <span className="text-[11px] tabular-nums" style={{ color: C.textMuted }}>
               {t("articlesCount", { count: sub.articles.length })}
             </span>
-            <button
-              className="w-6 h-6 flex items-center justify-center border text-[11px] font-bold cursor-pointer transition-transform"
+            <IconButton
+              aria-label={t("articles")}
+              variant="outline"
+              size="icon-sm"
+              className="w-6 h-6 text-[11px] transition-transform"
               style={{
                 borderColor: C.borderLight,
                 transform: open ? "rotate(45deg)" : "rotate(0deg)",
@@ -119,7 +124,7 @@ function SubjectRow({ sub, idx }: { sub: ExploreSubject; idx: number }) {
               }}
             >
               +
-            </button>
+            </IconButton>
           </div>
         </div>
       </div>
@@ -225,8 +230,11 @@ function TeacherRow({ t: teacher, idx }: { t: ExploreTeacher; idx: number }) {
             <span>{t("reviewsCount", { count: teacher.ratings.count })}</span>
           </div>
           {teacher.articles.length > 0 && (
-            <button
-              className="w-6 h-6 flex items-center justify-center border text-[11px] font-bold cursor-pointer transition-transform"
+            <IconButton
+              aria-label={t("articles")}
+              variant="outline"
+              size="icon-sm"
+              className="w-6 h-6 text-[11px] transition-transform"
               style={{
                 borderColor: C.borderLight,
                 transform: open ? "rotate(45deg)" : "rotate(0deg)",
@@ -237,7 +245,7 @@ function TeacherRow({ t: teacher, idx }: { t: ExploreTeacher; idx: number }) {
               }}
             >
               +
-            </button>
+            </IconButton>
           )}
         </div>
       </div>
@@ -428,12 +436,12 @@ export function ExplorePage({
             <div className="flex flex-wrap items-end justify-between gap-6">
               <div>
                 <div className="flex items-center gap-3 mb-4">
-                  <span
-                    className="text-[11px] font-bold px-2 py-0.5 uppercase tracking-wider"
+                  <Badge
+                    className="border-0 text-[11px] px-2 py-0.5 tracking-wider"
                     style={{ backgroundColor: C.accent, color: "#fff" }}
                   >
                     {t("fullIndex")}
-                  </span>
+                  </Badge>
                   <span
                     className="text-[11px] uppercase tracking-wider"
                     style={{ color: C.textMuted }}
@@ -502,22 +510,12 @@ export function ExplorePage({
         style={{ borderColor: C.borderLight, backgroundColor: C.bg }}
       >
         <div className="max-w-7xl mx-auto px-4">
-          <div className="flex">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider transition-colors cursor-pointer"
-                style={{
-                  backgroundColor:
-                    activeTab === tab.id ? C.headerBg : "transparent",
-                  color: activeTab === tab.id ? C.headerText : C.textMuted,
-                }}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            options={TABS.map((tab) => ({ value: tab.id, label: tab.label }))}
+            value={activeTab}
+            onChange={setActiveTab}
+            className="border-0"
+          />
         </div>
       </section>
 
@@ -611,12 +609,13 @@ export function ExplorePage({
                   </div>
                   <div className="text-right w-16">
                     {sa.pinned && (
-                      <span
-                        className="text-[10px] font-bold px-1.5 py-0.5 border"
+                      <Badge
+                        size="sm"
+                        className="tracking-normal"
                         style={{ borderColor: C.accent, color: C.accent }}
                       >
                         {t("pinned")}
-                      </span>
+                      </Badge>
                     )}
                   </div>
                   <div className="flex justify-end w-16">

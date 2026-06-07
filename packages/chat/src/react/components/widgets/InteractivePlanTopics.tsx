@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { C } from "@wikipefia/mdx-renderer/theme";
+import { Button } from "@wikipefia/ui";
 import { useSubmitToolResponse } from "../../hooks/use-messages";
 
 /**
@@ -125,13 +126,12 @@ export function InteractivePlanTopics({
 
         {!isReadOnly ? (
           <div className="flex items-center justify-end gap-2 mt-1">
-            <button
+            <Button
               type="button"
               onClick={handleStart}
               disabled={submitting || topicCount === 0}
-              className="border-2 h-[36px] px-5 text-[11px] font-bold uppercase tracking-[0.1em] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              className="border-2 h-[36px] px-5 text-[11px]"
               style={{
-                fontFamily: "var(--font-mono)",
                 borderColor: C.accent,
                 backgroundColor: C.accent,
                 color: "#fff",
@@ -139,7 +139,7 @@ export function InteractivePlanTopics({
               }}
             >
               {submitting ? "Запуск..." : "→ Начать обучение"}
-            </button>
+            </Button>
           </div>
         ) : null}
       </div>

@@ -3,6 +3,7 @@
 import { useState, useCallback, type KeyboardEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { C } from "@wikipefia/mdx-renderer/theme";
+import { Button, Textarea } from "@wikipefia/ui";
 import { useSubmitToolResponse } from "../../hooks/use-messages";
 
 /**
@@ -194,7 +195,7 @@ export function InteractiveNextTopicButton({
                 transition={{ duration: 0.14 }}
                 className="flex flex-col gap-2"
               >
-                <textarea
+                <Textarea
                   autoFocus
                   value={questionText}
                   onChange={(e) => setQuestionText(e.target.value)}
@@ -205,7 +206,7 @@ export function InteractiveNextTopicButton({
                   )}
                   placeholder="Что осталось непонятным?"
                   disabled={submitting}
-                  className="border px-3 py-2 text-[14px] resize-y outline-none disabled:opacity-60"
+                  className="px-3 py-2 text-[14px] resize-y"
                   style={{
                     fontFamily: "var(--font-serif)",
                     borderColor: C.border,
@@ -224,38 +225,34 @@ export function InteractiveNextTopicButton({
                     ⌘+Enter — отправить · Esc — отмена
                   </span>
                   <div className="flex items-center gap-2">
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
                       onClick={() => {
                         setComposing(false);
                         setQuestionText("");
                       }}
                       disabled={submitting}
-                      className="border h-[30px] px-3 text-[10px] font-bold uppercase tracking-[0.1em] cursor-pointer disabled:opacity-40"
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        borderColor: "transparent",
-                        color: C.textMuted,
-                      }}
+                      className="h-[30px] px-3 text-[10px]"
+                      style={{ color: C.textMuted }}
                     >
                       Отмена
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
                       onClick={askAction}
                       disabled={
                         questionText.trim().length === 0 || submitting
                       }
-                      className="border-2 h-[30px] px-4 text-[10px] font-bold uppercase tracking-[0.1em] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="border-2 h-[30px] px-4 text-[10px]"
                       style={{
-                        fontFamily: "var(--font-mono)",
                         borderColor: C.accent,
                         backgroundColor: C.accent,
                         color: "#fff",
                       }}
                     >
                       {submitting ? "Отправка…" : "Задать вопрос →"}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </motion.div>
@@ -280,13 +277,12 @@ export function InteractiveNextTopicButton({
                 >
                   ? У меня есть вопрос
                 </button>
-                <button
+                <Button
                   type="button"
                   onClick={continueAction}
                   disabled={submitting}
-                  className="border-2 h-[36px] px-5 text-[11px] font-bold uppercase tracking-[0.1em] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="border-2 h-[36px] px-5 text-[11px]"
                   style={{
-                    fontFamily: "var(--font-mono)",
                     borderColor: C.accent,
                     backgroundColor: C.accent,
                     color: "#fff",
@@ -294,7 +290,7 @@ export function InteractiveNextTopicButton({
                   }}
                 >
                   {submitting ? "Отправка…" : "→ Перейти к следующей теме"}
-                </button>
+                </Button>
               </motion.div>
             )}
           </AnimatePresence>

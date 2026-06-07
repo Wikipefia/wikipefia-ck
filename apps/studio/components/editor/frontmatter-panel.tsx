@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { Label, Select, Input as UIInput } from "@wikipefia/ui";
+import { AnimatePresence, motion } from "motion/react";
+import { useCallback, useMemo, useState } from "react";
 import { C } from "@/lib/theme";
 
 interface Frontmatter {
@@ -73,7 +74,8 @@ function parseFrontmatter(source: string): {
           }
         } else if (val.startsWith("[")) {
           // inline array
-          const items = val.match(/"([^"]*)"/g)?.map((s) => s.replace(/"/g, "")) ?? [];
+          const items =
+            val.match(/"([^"]*)"/g)?.map((s) => s.replace(/"/g, "")) ?? [];
           (data as Record<string, unknown>)[currentKey] = items;
         }
       } else if (subMatch) {
@@ -83,7 +85,10 @@ function parseFrontmatter(source: string): {
         if (!data[currentKey as keyof Frontmatter]) {
           (data as Record<string, unknown>)[currentKey] = {};
         }
-        const parent = data[currentKey as keyof Frontmatter] as Record<string, unknown>;
+        const parent = data[currentKey as keyof Frontmatter] as Record<
+          string,
+          unknown
+        >;
 
         if (val.startsWith("[")) {
           parent[currentSubKey] =
@@ -94,7 +99,10 @@ function parseFrontmatter(source: string): {
       } else if (listMatch) {
         const val = listMatch[1].trim().replace(/^"(.*)"$/, "$1");
         if (currentSubKey) {
-          const parent = data[currentKey as keyof Frontmatter] as Record<string, unknown>;
+          const parent = data[currentKey as keyof Frontmatter] as Record<
+            string,
+            unknown
+          >;
           if (!Array.isArray(parent[currentSubKey])) parent[currentSubKey] = [];
           (parent[currentSubKey] as string[]).push(val);
         } else {
@@ -129,9 +137,7 @@ function serializeFrontmatter(data: Frontmatter): string {
     for (const locale of ["ru", "en", "cz"] as const) {
       const kw = data.keywords[locale];
       if (kw?.length) {
-        lines.push(
-          `  ${locale}: [${kw.map((k) => `"${k}"`).join(", ")}]`,
-        );
+        lines.push(`  ${locale}: [${kw.map((k) => `"${k}"`).join(", ")}]`);
       }
     }
   }
@@ -171,11 +177,7 @@ export function FrontmatterPanel({
   );
 
   const updateLocalized = useCallback(
-    (
-      field: "title",
-      locale: "ru" | "en" | "cz",
-      value: string,
-    ) => {
+    (field: "title", locale: "ru" | "en" | "cz", value: string) => {
       update((prev) => ({
         ...prev,
         [field]: { ...prev[field], [locale]: value },
@@ -203,10 +205,7 @@ export function FrontmatterPanel({
   if (!hasFrontmatter) return null;
 
   return (
-    <div
-      className="shrink-0 border-b"
-      style={{ borderColor: C.borderLight }}
-    >
+    <div className="shrink-0 border-b" style={{ borderColor: C.borderLight }}>
       {/* Toggle header */}
       <button
         type="button"
@@ -232,7 +231,11 @@ export function FrontmatterPanel({
         {!open && data.title?.en && (
           <span
             className="text-[9px] truncate ml-2"
-            style={{ fontFamily: "var(--font-mono)", color: C.textMuted, opacity: 0.6 }}
+            style={{
+              fontFamily: "var(--font-mono)",
+              color: C.textMuted,
+              opacity: 0.6,
+            }}
           >
             {data.title.en}
           </span>
@@ -275,7 +278,10 @@ export function FrontmatterPanel({
                     placeholder="article-slug"
                   />
                 </FieldGroup>
-                <FieldGroup label="author" description={FIELD_DESCRIPTIONS.author}>
+                <FieldGroup
+                  label="author"
+                  description={FIELD_DESCRIPTIONS.author}
+                >
                   <Input
                     value={data.author ?? ""}
                     onChange={(v) =>
@@ -288,7 +294,8 @@ export function FrontmatterPanel({
                   label="difficulty"
                   description={FIELD_DESCRIPTIONS.difficulty}
                 >
-                  <select
+                  <Select
+                    size="sm"
                     value={data.difficulty ?? ""}
                     onChange={(e) =>
                       update((p) => ({
@@ -296,19 +303,13 @@ export function FrontmatterPanel({
                         difficulty: e.target.value || undefined,
                       }))
                     }
-                    className="w-full px-2 py-1 text-[11px] border outline-none cursor-pointer"
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      backgroundColor: C.bgWhite,
-                      borderColor: C.borderLight,
-                      color: C.text,
-                    }}
+                    style={{ fontFamily: "var(--font-mono)" }}
                   >
                     <option value="">—</option>
                     <option value="beginner">beginner</option>
                     <option value="intermediate">intermediate</option>
                     <option value="advanced">advanced</option>
-                  </select>
+                  </Select>
                 </FieldGroup>
               </div>
 
@@ -383,7 +384,10 @@ export function FrontmatterPanel({
                     update((p) => ({
                       ...p,
                       prerequisites: v
-                        ? v.split(",").map((s) => s.trim()).filter(Boolean)
+                        ? v
+                            .split(",")
+                            .map((s) => s.trim())
+                            .filter(Boolean)
                         : undefined,
                     }))
                   }
@@ -402,7 +406,10 @@ export function FrontmatterPanel({
                     update((p) => ({
                       ...p,
                       tutors: v
-                        ? v.split(",").map((s) => s.trim()).filter(Boolean)
+                        ? v
+                            .split(",")
+                            .map((s) => s.trim())
+                            .filter(Boolean)
                         : undefined,
                     }))
                   }
@@ -429,15 +436,16 @@ function FieldGroup({
   return (
     <div>
       <div className="flex items-baseline gap-2 mb-1">
-        <span
-          className="text-[9px] font-bold uppercase tracking-[0.1em]"
-          style={{ fontFamily: "var(--font-mono)", color: C.textMuted }}
-        >
+        <Label size="sm" className="text-[9px] tracking-[0.1em]">
           {label}
-        </span>
+        </Label>
         <span
           className="text-[8px] tracking-wider"
-          style={{ fontFamily: "var(--font-mono)", color: C.textMuted, opacity: 0.5 }}
+          style={{
+            fontFamily: "var(--font-mono)",
+            color: C.textMuted,
+            opacity: 0.5,
+          }}
         >
           {description}
         </span>
@@ -460,29 +468,15 @@ function LocaleInput({
 }) {
   return (
     <div>
-      <div
-        className="text-[7px] font-bold uppercase tracking-[0.2em] mb-0.5"
-        style={{ fontFamily: "var(--font-mono)", color: C.textMuted }}
-      >
+      <Label size="sm" className="text-[7px] tracking-[0.2em] mb-0.5">
         {locale}
-      </div>
-      <input
+      </Label>
+      <UIInput
+        size="sm"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full px-2 py-1 text-[11px] border outline-none transition-colors"
-        style={{
-          fontFamily: "var(--font-mono)",
-          backgroundColor: C.bgWhite,
-          borderColor: C.borderLight,
-          color: C.text,
-        }}
-        onFocus={(e) => {
-          e.currentTarget.style.borderColor = C.accent;
-        }}
-        onBlur={(e) => {
-          e.currentTarget.style.borderColor = C.borderLight;
-        }}
+        style={{ fontFamily: "var(--font-mono)" }}
       />
     </div>
   );
@@ -500,24 +494,13 @@ function Input({
   type?: string;
 }) {
   return (
-    <input
+    <UIInput
+      size="sm"
       type={type}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full px-2 py-1 text-[11px] border outline-none transition-colors"
-      style={{
-        fontFamily: "var(--font-mono)",
-        backgroundColor: C.bgWhite,
-        borderColor: C.borderLight,
-        color: C.text,
-      }}
-      onFocus={(e) => {
-        e.currentTarget.style.borderColor = C.accent;
-      }}
-      onBlur={(e) => {
-        e.currentTarget.style.borderColor = C.borderLight;
-      }}
+      style={{ fontFamily: "var(--font-mono)" }}
     />
   );
 }

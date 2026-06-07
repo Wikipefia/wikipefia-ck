@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { C } from "@wikipefia/mdx-renderer/theme";
+import { IconButton } from "@wikipefia/ui";
 import { ThreadSidebar } from "./ThreadSidebar";
 import { useChatConfig } from "../transport-context";
 
@@ -89,21 +90,20 @@ export function ChatLayout({
                 </div>
               </div>
             ) : null}
-            <button
+            <IconButton
               type="button"
+              size="icon-sm"
               onClick={() => setPanelOpen((v) => !v)}
               aria-label={panelOpen ? "Collapse panel" : "Expand panel"}
               title={panelOpen ? "Collapse panel" : "Expand panel"}
-              className="border h-[28px] w-[28px] flex items-center justify-center text-[12px] cursor-pointer hover:opacity-80"
               style={{
                 borderColor: C.border,
                 backgroundColor: C.bg,
                 color: C.text,
-                fontFamily: "var(--font-mono)",
               }}
             >
               {panelOpen ? "›" : "‹"}
-            </button>
+            </IconButton>
           </div>
           {panelOpen ? (
             <div className="flex-1 overflow-y-auto">{rightPanel.content}</div>

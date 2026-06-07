@@ -1,27 +1,23 @@
 @import "tailwindcss";
+@import "@wikipefia/ui/styles.css";
+@source "../../../packages/ui/src";
+@source "../../../packages/mdx-renderer/src";
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 }
 
+/*
+ * The core palette (--c-bg, --c-text, --c-accent, …), the Tailwind color
+ * mapping and shared base utilities (.noise-overlay, .theme-toggle-icon) now
+ * live in @wikipefia/ui/styles.css. Only app-specific tokens remain here.
+ */
+
 /* ── Light Theme (default) ── */
 :root {
   --background: #fafafa;
   --foreground: #111111;
-
-  /* Design tokens */
-  --c-bg: #f5f5f4;
-  --c-bg-white: #ffffff;
-  --c-text: #1a1a1a;
-  --c-text-muted: #6b6b6b;
-  --c-accent: #2563EB;
-  --c-border: #d4d4d4;
-  --c-border-light: #e5e5e5;
-
-  /* Inverted surface (header bars, badges) */
-  --c-header-bg: #1a1a1a;
-  --c-header-text: #fafafa;
 
   /* MDX content colors */
   --c-content-text: #333333;
@@ -38,19 +34,6 @@
 .dark {
   --background: #0e0e0e;
   --foreground: #d4d4d4;
-
-  /* Design tokens */
-  --c-bg: #141414;
-  --c-bg-white: #1a1a1a;
-  --c-text: #d4d4d4;
-  --c-text-muted: #777777;
-  --c-accent: #60A5FA;
-  --c-border: #333333;
-  --c-border-light: #252525;
-
-  /* Inverted surface */
-  --c-header-bg: #1e1e1e;
-  --c-header-text: #d4d4d4;
 
   /* MDX content colors */
   --c-content-text: #b8b8b8;
@@ -130,17 +113,6 @@ body {
   color: var(--c-text);
 }
 
-/* ── Noise texture utility ── */
-.noise-overlay::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  opacity: 0.03;
-  pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-  background-size: 128px 128px;
-}
-
 /* ── Grain overlay with animation ── */
 @keyframes grain {
   0%, 100% { transform: translate(0, 0); }
@@ -164,12 +136,3 @@ body {
   z-index: 100;
 }
 
-/* ── Theme toggle animation ── */
-@keyframes theme-toggle-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(180deg); }
-}
-
-.theme-toggle-icon {
-  animation: theme-toggle-spin 0.3s ease-out;
-}
