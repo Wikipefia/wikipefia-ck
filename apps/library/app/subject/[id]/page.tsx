@@ -2,6 +2,7 @@
 
 import { api } from "@wikipefia/convex/api";
 import type { Id } from "@wikipefia/convex/dataModel";
+import { Button, Chip } from "@wikipefia/ui";
 import { usePaginatedQuery, useQuery } from "convex/react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
@@ -9,7 +10,6 @@ import { useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FileCard } from "@/components/file-card";
 import { Masthead } from "@/components/masthead";
-import { Btn, Pill } from "@/components/ui";
 import { UploadDialog } from "@/components/upload-dialog";
 import { expandFiles } from "@/lib/expand-files";
 import { C, FONT } from "@/lib/theme";
@@ -87,33 +87,27 @@ export default function SubjectPage() {
         onDropFiles(Array.from(e.dataTransfer.files));
       }}
     >
-      <Masthead
-        actions={
-          <Btn variant="primary" onClick={() => setUploadOpen(true)}>
-            + Upload
-          </Btn>
-        }
-      />
+      <Masthead onUpload={() => setUploadOpen(true)} />
 
       <main className="relative mx-auto w-full max-w-6xl flex-1 px-5 py-8">
         <Link
           href="/"
-          className="inline-block text-[10px] uppercase tracking-[0.18em] text-[var(--c-text-muted)] transition-colors hover:text-[var(--c-accent)]"
+          className="inline-block text-[10px] uppercase tracking-[0.18em] text-muted transition-colors hover:text-accent"
           style={{ fontFamily: FONT.mono }}
         >
           ← Subjects
         </Link>
 
-        <div className="mt-4 mb-7 flex items-end justify-between gap-4 border-b border-[var(--c-border-light)] pb-5">
+        <div className="mt-4 mb-7 flex items-end justify-between gap-4 border-b border-line-soft pb-5">
           <div>
             <h1
-              className="text-[28px] font-semibold leading-tight text-[var(--c-text)]"
+              className="text-[28px] font-semibold leading-tight text-fg"
               style={{ fontFamily: FONT.serif }}
             >
               {subject ? subject.name : "…"}
             </h1>
             <p
-              className="mt-1 text-[10px] uppercase tracking-[0.14em] text-[var(--c-text-muted)]"
+              className="mt-1 text-[10px] uppercase tracking-[0.14em] text-muted"
               style={{ fontFamily: FONT.mono }}
             >
               {subject?.slug}
@@ -121,7 +115,7 @@ export default function SubjectPage() {
             </p>
           </div>
           <span
-            className="hidden shrink-0 text-[10px] uppercase tracking-[0.18em] text-[var(--c-text-muted)] sm:block"
+            className="hidden shrink-0 text-[10px] uppercase tracking-[0.18em] text-muted sm:block"
             style={{ fontFamily: FONT.mono }}
           >
             Drop files or a .zip anywhere to upload
@@ -143,7 +137,7 @@ export default function SubjectPage() {
             >
               <div className="flex items-center justify-between gap-3">
                 <span
-                  className="min-w-0 flex-1 truncate text-[12px] text-[var(--c-text)]"
+                  className="min-w-0 flex-1 truncate text-[12px] text-fg"
                   style={{ fontFamily: FONT.mono }}
                 >
                   {upload.fileName}
@@ -165,16 +159,16 @@ export default function SubjectPage() {
                 </span>
               </div>
               {upload.status !== "error" && (
-                <div className="mt-2 h-1 w-full bg-[var(--c-border-light)]">
+                <div className="mt-2 h-1 w-full bg-line-soft">
                   <div
-                    className="h-1 bg-[var(--c-accent)] transition-[width] duration-150 ease-out"
+                    className="h-1 bg-accent transition-[width] duration-150 ease-out"
                     style={{ width: `${upload.progress}%` }}
                   />
                 </div>
               )}
               {upload.status === "error" && (
                 <p
-                  className="mt-1 text-[11px] text-red-500"
+                  className="mt-1 text-[11px] text-danger"
                   style={{ fontFamily: FONT.mono }}
                 >
                   {upload.error}
@@ -186,20 +180,20 @@ export default function SubjectPage() {
 
         {availableTags.length > 0 && (
           <div className="mb-6 flex flex-wrap items-center gap-1.5">
-            <Pill
+            <Chip
               active={activeTag === null}
               onClick={() => setActiveTag(null)}
             >
               All
-            </Pill>
+            </Chip>
             {availableTags.map((tag) => (
-              <Pill
+              <Chip
                 key={tag}
                 active={activeTag === tag}
                 onClick={() => setActiveTag(tag)}
               >
                 #{tag}
-              </Pill>
+              </Chip>
             ))}
           </div>
         )}
@@ -207,7 +201,7 @@ export default function SubjectPage() {
         {paginated.isLoading && files.length === 0 ? (
           <GridSkeleton />
         ) : shown.length === 0 ? (
-          <EmptyState onUpload={() => setUploadOpen(true)} />
+          <ShelfEmpty onUpload={() => setUploadOpen(true)} />
         ) : (
           <motion.div
             layout
@@ -232,9 +226,13 @@ export default function SubjectPage() {
 
         {paginated.status === "CanLoadMore" && (
           <div className="mt-8 flex justify-center">
-            <Btn variant="outline" onClick={() => paginated.loadMore(48)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => paginated.loadMore(48)}
+            >
               Load more
-            </Btn>
+            </Button>
           </div>
         )}
 
@@ -253,7 +251,7 @@ export default function SubjectPage() {
               }}
             >
               <span
-                className="text-[13px] font-bold uppercase tracking-[0.2em] text-[var(--c-accent)]"
+                className="text-[13px] font-bold uppercase tracking-[0.2em] text-accent"
                 style={{ fontFamily: FONT.mono }}
               >
                 Drop to upload → {subject?.name ?? "this subject"}
@@ -263,14 +261,12 @@ export default function SubjectPage() {
         </AnimatePresence>
       </main>
 
-      <AnimatePresence>
-        {uploadOpen && (
-          <UploadDialog
-            onClose={() => setUploadOpen(false)}
-            lockedSubjectId={subjectId}
-          />
-        )}
-      </AnimatePresence>
+      {uploadOpen && (
+        <UploadDialog
+          onClose={() => setUploadOpen(false)}
+          lockedSubjectId={subjectId}
+        />
+      )}
     </div>
   );
 }
@@ -282,33 +278,33 @@ function GridSkeleton() {
         <div
           // biome-ignore lint/suspicious/noArrayIndexKey: static placeholder list.
           key={i}
-          className="h-[150px] animate-pulse border border-[var(--c-border-light)] bg-[var(--c-bg)]"
+          className="h-[150px] animate-pulse border border-line-soft bg-bg"
         />
       ))}
     </div>
   );
 }
 
-function EmptyState({ onUpload }: { onUpload: () => void }) {
+function ShelfEmpty({ onUpload }: { onUpload: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center border border-dashed border-[var(--c-border)] py-20 text-center">
+    <div className="flex flex-col items-center justify-center border border-dashed border-line py-20 text-center">
       <span
-        className="text-[10px] uppercase tracking-[0.2em] text-[var(--c-text-muted)]"
+        className="text-[10px] uppercase tracking-[0.2em] text-muted"
         style={{ fontFamily: FONT.mono }}
       >
         Empty shelf
       </span>
       <p
-        className="mt-3 max-w-xs text-[15px] text-[var(--c-text)]"
+        className="mt-3 max-w-xs text-[15px] text-fg"
         style={{ fontFamily: FONT.serif }}
       >
         Drop files or a .zip anywhere on this page — or use the button — to add
         the first one.
       </p>
       <div className="mt-5">
-        <Btn variant="primary" onClick={onUpload}>
+        <Button variant="primary" size="sm" onClick={onUpload}>
           + Upload a file
-        </Btn>
+        </Button>
       </div>
     </div>
   );

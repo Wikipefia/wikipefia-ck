@@ -1,12 +1,12 @@
 "use client";
 
 import { api } from "@wikipefia/convex/api";
+import { EmptyState } from "@wikipefia/ui";
 import { useQuery } from "convex/react";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import { useState } from "react";
 import { Masthead } from "@/components/masthead";
 import { SubjectCard } from "@/components/subject-card";
-import { Btn } from "@/components/ui";
 import { UploadDialog } from "@/components/upload-dialog";
 import { FONT } from "@/lib/theme";
 
@@ -23,31 +23,25 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Masthead
-        actions={
-          <Btn variant="primary" onClick={() => setUploadOpen(true)}>
-            + Upload
-          </Btn>
-        }
-      />
+      <Masthead onUpload={() => setUploadOpen(true)} />
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-8">
-        <div className="mb-8 flex items-end justify-between gap-4 border-b border-[var(--c-border-light)] pb-5">
+        <div className="mb-8 flex items-end justify-between gap-4 border-b border-line-soft pb-5">
           <div>
             <h1
-              className="text-[28px] font-semibold leading-tight text-[var(--c-text)]"
+              className="text-[28px] font-semibold leading-tight text-fg"
               style={{ fontFamily: FONT.serif }}
             >
               Subjects
             </h1>
-            <p className="mt-1 text-[13px] text-[var(--c-text-muted)]">
+            <p className="mt-1 text-[13px] text-muted">
               The library is organized by subject. Open a shelf to browse its
               files.
             </p>
           </div>
           {subjects && (
             <span
-              className="hidden shrink-0 text-[10px] uppercase tracking-[0.18em] text-[var(--c-text-muted)] sm:block"
+              className="hidden shrink-0 text-[10px] uppercase tracking-[0.18em] text-muted sm:block"
               style={{ fontFamily: FONT.mono }}
             >
               {subjects.length} subjects · {totalFiles} files
@@ -58,12 +52,9 @@ export default function Home() {
         {sorted === undefined ? (
           <GridSkeleton />
         ) : sorted.length === 0 ? (
-          <p
-            className="border border-dashed border-[var(--c-border)] py-16 text-center text-[13px] text-[var(--c-text-muted)]"
-            style={{ fontFamily: FONT.mono }}
-          >
-            No subjects found.
-          </p>
+          <EmptyState className="border border-dashed border-line py-16">
+            No subjects found
+          </EmptyState>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {sorted.map((subject, i) => (
@@ -80,9 +71,7 @@ export default function Home() {
         )}
       </main>
 
-      <AnimatePresence>
-        {uploadOpen && <UploadDialog onClose={() => setUploadOpen(false)} />}
-      </AnimatePresence>
+      {uploadOpen && <UploadDialog onClose={() => setUploadOpen(false)} />}
     </div>
   );
 }
@@ -94,7 +83,7 @@ function GridSkeleton() {
         <div
           // biome-ignore lint/suspicious/noArrayIndexKey: static placeholder list.
           key={i}
-          className="h-[150px] animate-pulse border border-[var(--c-border-light)] bg-[var(--c-bg)]"
+          className="h-[150px] animate-pulse border border-line-soft bg-bg"
         />
       ))}
     </div>

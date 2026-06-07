@@ -112,6 +112,9 @@ importers:
       '@wikipefia/convex':
         specifier: workspace:*
         version: link:../../convex
+      '@wikipefia/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       convex:
         specifier: ^1.39.1
         version: 1.39.1(react@19.2.3)

@@ -7,6 +7,8 @@ import type { NextConfig } from "next";
 loadEnvConfig(path.resolve(__dirname, "../.."));
 
 const nextConfig: NextConfig = {
+  // The shared UI library ships raw TS/TSX — Next must transpile it.
+  transpilePackages: ["@wikipefia/ui"],
   // Allow Next dev assets to be requested from the LAN host used in this setup.
   allowedDevOrigins: ["10.10.10.1"],
 };

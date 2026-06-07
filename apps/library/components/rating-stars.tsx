@@ -45,7 +45,7 @@ export function RatingStars({
         })}
       </div>
       <span
-        className="text-[11px] uppercase tracking-[0.12em] text-[var(--c-text-muted)]"
+        className="text-[11px] uppercase tracking-[0.12em] text-muted"
         style={{ fontFamily: FONT.mono }}
       >
         {ratingAvg > 0 ? ratingAvg.toFixed(1) : "—"}

@@ -1,5 +1,5 @@
+import { Badge } from "@wikipefia/ui";
 import Link from "next/link";
-import { TypeBadge } from "@/components/ui";
 import {
   documentTypeCode,
   formatBytes,
@@ -16,10 +16,12 @@ export function FileCard({ file }: { file: LibraryFile }) {
   return (
     <Link
       href={`/file/${file._id}`}
-      className="group flex flex-col gap-3 border border-[var(--c-border-light)] bg-[var(--c-bg-white)] p-4 transition-colors hover:border-[var(--c-accent)]"
+      className="group flex flex-col gap-3 border border-line-soft bg-surface p-4 transition-colors hover:border-accent"
     >
       <div className="flex items-center justify-between">
-        <TypeBadge code={documentTypeCode(file.documentType)} />
+        <Badge variant="accent" size="sm" className="tracking-[0.18em]">
+          {documentTypeCode(file.documentType)}
+        </Badge>
         {transcribed && (
           <span
             className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.12em]"
@@ -40,7 +42,7 @@ export function FileCard({ file }: { file: LibraryFile }) {
       </div>
 
       <h3
-        className="line-clamp-2 text-[17px] font-medium leading-snug text-[var(--c-text)]"
+        className="line-clamp-2 text-[17px] font-medium leading-snug text-fg"
         style={{ fontFamily: FONT.serif }}
         title={file.title}
       >
@@ -48,7 +50,7 @@ export function FileCard({ file }: { file: LibraryFile }) {
       </h3>
 
       <div
-        className="mt-auto flex items-center gap-2 text-[10px] uppercase tracking-[0.1em] text-[var(--c-text-muted)]"
+        className="mt-auto flex items-center gap-2 text-[10px] uppercase tracking-[0.1em] text-muted"
         style={{ fontFamily: FONT.mono }}
       >
         <span className="truncate">{file.subjectSlug}</span>
@@ -60,7 +62,7 @@ export function FileCard({ file }: { file: LibraryFile }) {
         <Stars avg={file.ratingAvg} count={file.ratingCount} />
         {file.tags.length > 0 && (
           <div
-            className="flex items-center gap-1 text-[10px] text-[var(--c-text-muted)]"
+            className="flex items-center gap-1 text-[10px] text-muted"
             style={{ fontFamily: FONT.mono }}
           >
             <span className="opacity-60">#</span>
@@ -93,7 +95,7 @@ function Stars({ avg, count }: { avg: number; count: number }) {
           </span>
         ))}
       </span>
-      <span className="text-[10px] text-[var(--c-text-muted)]">
+      <span className="text-[10px] text-muted">
         {count > 0 ? avg.toFixed(1) : "—"}
       </span>
     </span>

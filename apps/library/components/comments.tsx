@@ -2,9 +2,9 @@
 
 import { api } from "@wikipefia/convex/api";
 import type { Id } from "@wikipefia/convex/dataModel";
+import { Button, Textarea } from "@wikipefia/ui";
 import { useMutation, useQuery } from "convex/react";
 import { type FormEvent, useMemo, useState } from "react";
-import { inputCls, inputStyle } from "@/components/ui";
 import { FONT } from "@/lib/theme";
 import type { LibraryComment } from "@/lib/types";
 
@@ -39,43 +39,31 @@ export function Comments({ fileId }: { fileId: Id<"libraryFiles"> }) {
   return (
     <div className="space-y-5">
       <form onSubmit={handleAdd} className="space-y-2">
-        <textarea
+        <Textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={3}
           placeholder="Add a comment…"
-          className={inputCls}
-          style={inputStyle}
         />
         <div className="flex items-center justify-between">
           <span
-            className="text-[10px] uppercase tracking-[0.15em] text-[var(--c-text-muted)]"
+            className="text-[10px] uppercase tracking-[0.15em] text-muted"
             style={{ fontFamily: FONT.mono }}
           >
             {total} {total === 1 ? "comment" : "comments"}
           </span>
-          <button
-            type="submit"
-            className="border border-[var(--c-accent)] bg-[var(--c-accent)] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white transition-opacity hover:opacity-90"
-            style={{ fontFamily: FONT.mono }}
-          >
+          <Button type="submit" variant="primary" size="sm">
             Post
-          </button>
+          </Button>
         </div>
       </form>
 
       {comments === undefined ? (
-        <p
-          className="text-[12px] text-[var(--c-text-muted)]"
-          style={{ fontFamily: FONT.mono }}
-        >
+        <p className="text-[12px] text-muted" style={{ fontFamily: FONT.mono }}>
           Loading…
         </p>
       ) : roots.length === 0 ? (
-        <p
-          className="text-[12px] text-[var(--c-text-muted)]"
-          style={{ fontFamily: FONT.mono }}
-        >
+        <p className="text-[12px] text-muted" style={{ fontFamily: FONT.mono }}>
           No comments yet — start the thread.
         </p>
       ) : (
@@ -121,11 +109,11 @@ function CommentNode({
   }
 
   return (
-    <li className="border-l-2 border-[var(--c-border-light)] pl-4">
-      <div className="text-[14px] leading-relaxed text-[var(--c-text)]">
+    <li className="border-l-2 border-line-soft pl-4">
+      <div className="text-[14px] leading-relaxed text-fg">
         {deleted ? (
           <span
-            className="text-[12px] italic text-[var(--c-text-muted)]"
+            className="text-[12px] italic text-muted"
             style={{ fontFamily: FONT.mono }}
           >
             [comment deleted]
@@ -136,20 +124,20 @@ function CommentNode({
       </div>
       {!deleted && (
         <div
-          className="mt-1.5 flex gap-4 text-[10px] uppercase tracking-[0.12em] text-[var(--c-text-muted)]"
+          className="mt-1.5 flex gap-4 text-[10px] uppercase tracking-[0.12em] text-muted"
           style={{ fontFamily: FONT.mono }}
         >
           <button
             type="button"
             onClick={() => setReplyOpen((o) => !o)}
-            className="transition-colors hover:text-[var(--c-accent)]"
+            className="transition-colors hover:text-accent"
           >
             Reply
           </button>
           <button
             type="button"
             onClick={() => remove({ commentId: comment._id })}
-            className="transition-colors hover:text-red-500"
+            className="transition-colors hover:text-danger"
           >
             Delete
           </button>
@@ -158,22 +146,16 @@ function CommentNode({
 
       {replyOpen && (
         <form onSubmit={handleReply} className="mt-3 space-y-2">
-          <textarea
+          <Textarea
             value={replyBody}
             onChange={(e) => setReplyBody(e.target.value)}
             rows={2}
             placeholder="Reply…"
-            className={inputCls}
-            style={inputStyle}
           />
           <div className="flex justify-end">
-            <button
-              type="submit"
-              className="border border-[var(--c-accent)] bg-[var(--c-accent)] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white transition-opacity hover:opacity-90"
-              style={{ fontFamily: FONT.mono }}
-            >
+            <Button type="submit" variant="primary" size="sm">
               Reply
-            </button>
+            </Button>
           </div>
         </form>
       )}

@@ -1,7 +1,7 @@
+import { ThemeProvider } from "@wikipefia/ui";
 import type { Metadata } from "next";
 import { IBM_Plex_Serif, JetBrains_Mono, Noto_Sans } from "next/font/google";
 import { ConvexClientProvider } from "@/components/shared/convex-provider";
-import { ThemeProvider } from "@/components/shared/theme-provider";
 import "./globals.css";
 
 const notoSans = Noto_Sans({

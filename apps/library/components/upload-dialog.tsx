@@ -1,17 +1,19 @@
 "use client";
 
 import { api } from "@wikipefia/convex/api";
+import {
+  Button,
+  Field,
+  Input,
+  Label,
+  Modal,
+  ProgressButton,
+  Select,
+  Textarea,
+} from "@wikipefia/ui";
 import { useQuery } from "convex/react";
 import { AnimatePresence, motion } from "motion/react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
-import {
-  Btn,
-  Field,
-  inputCls,
-  inputStyle,
-  MonoLabel,
-  ProgressButton,
-} from "@/components/ui";
 import { expandFiles } from "@/lib/expand-files";
 import { DOCUMENT_TYPES, type DocumentType, formatBytes } from "@/lib/metadata";
 import { C, FONT } from "@/lib/theme";
@@ -61,6 +63,18 @@ export function UploadDialog({
   const uploading =
     upload.status === "uploading" || upload.status === "finalizing";
   const single = files.length === 1;
+
+  // Swallow the browser's default file-drop (navigate to file) anywhere over
+  // the modal, including the backdrop — the form's own handler does the work.
+  useEffect(() => {
+    const prevent = (e: DragEvent) => e.preventDefault();
+    window.addEventListener("dragover", prevent);
+    window.addEventListener("drop", prevent);
+    return () => {
+      window.removeEventListener("dragover", prevent);
+      window.removeEventListener("drop", prevent);
+    };
+  }, []);
 
   // Pre-select the first subject once the list loads (unless locked).
   useEffect(() => {
@@ -148,20 +162,16 @@ export function UploadDialog({
             : "Upload";
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:p-8"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-      onClick={onClose}
+    <Modal
+      open
+      onClose={onClose}
+      align="top"
+      closeOnBackdrop={!uploading}
+      closeOnEscape={!uploading}
+      className={`max-w-lg ${dragOver ? "border-accent" : ""}`}
+      aria-label="Upload files"
     >
-      <motion.form
-        initial={{ opacity: 0, y: -10, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: -10, scale: 0.98 }}
-        transition={{ duration: 0.14 }}
-        onClick={(e) => e.stopPropagation()}
+      <form
         onSubmit={handleSubmit}
         onDragEnter={(e) => {
           e.preventDefault();
@@ -179,24 +189,16 @@ export function UploadDialog({
           setDragOver(false);
           acceptFiles(Array.from(e.dataTransfer.files));
         }}
-        className="relative w-full max-w-lg border shadow-2xl transition-colors"
-        style={{
-          backgroundColor: C.bgWhite,
-          borderColor: dragOver ? C.accent : C.border,
-        }}
       >
         {/* Header */}
-        <div
-          className="flex items-center justify-between border-b px-5 py-3"
-          style={{ borderColor: C.borderLight }}
-        >
-          <MonoLabel>
+        <div className="flex items-center justify-between border-b border-line-soft px-5 py-3">
+          <Label>
             {lockedSubject ? `Upload → ${lockedSubject.name}` : "Upload files"}
-          </MonoLabel>
+          </Label>
           <button
             type="button"
             onClick={onClose}
-            className="text-[var(--c-text-muted)] transition-colors hover:text-[var(--c-text)]"
+            className="text-muted transition-colors hover:text-fg"
           >
             ✕
           </button>
@@ -226,7 +228,7 @@ export function UploadDialog({
             />
             {expanding ? (
               <span
-                className="text-[13px] text-[var(--c-text)]"
+                className="text-[13px] text-fg"
                 style={{ fontFamily: FONT.mono }}
               >
                 Expanding archive…
@@ -240,14 +242,14 @@ export function UploadDialog({
                   ✓
                 </span>
                 <span
-                  className="text-[9px] font-bold uppercase tracking-[0.22em]"
-                  style={{ fontFamily: FONT.mono, color: C.accent }}
+                  className="text-[9px] font-bold uppercase tracking-[0.22em] text-accent"
+                  style={{ fontFamily: FONT.mono }}
                 >
                   {files.length} {files.length === 1 ? "file" : "files"}{" "}
                   attached
                 </span>
                 <span
-                  className="text-[10px] uppercase tracking-[0.15em] text-[var(--c-text-muted)]"
+                  className="text-[10px] uppercase tracking-[0.15em] text-muted"
                   style={{ fontFamily: FONT.mono }}
                 >
                   Click or drop to add more
@@ -262,7 +264,7 @@ export function UploadDialog({
                   ⤓
                 </span>
                 <span
-                  className="text-[14px] text-[var(--c-text)]"
+                  className="text-[14px] text-fg"
                   style={{ fontFamily: FONT.mono }}
                 >
                   {dragOver
@@ -270,7 +272,7 @@ export function UploadDialog({
                     : "Drop files or a .zip — or click to browse"}
                 </span>
                 <span
-                  className="text-[10px] uppercase tracking-[0.15em] text-[var(--c-text-muted)]"
+                  className="text-[10px] uppercase tracking-[0.15em] text-muted"
                   style={{ fontFamily: FONT.mono }}
                 >
                   Multiple files & archives · up to 256 MB each
@@ -281,25 +283,21 @@ export function UploadDialog({
 
           {/* Attached file list */}
           {hasFiles && (
-            <ul
-              className="max-h-44 divide-y overflow-y-auto border"
-              style={{ borderColor: C.borderLight }}
-            >
+            <ul className="max-h-44 divide-y divide-line-soft overflow-y-auto border border-line-soft">
               {files.map((f, i) => (
                 <li
                   key={`${f.name}-${f.size}-${i}`}
                   className="flex items-center justify-between gap-3 px-3 py-2"
-                  style={{ borderColor: C.borderLight }}
                 >
                   <span
-                    className="min-w-0 flex-1 truncate text-[12px] text-[var(--c-text)]"
+                    className="min-w-0 flex-1 truncate text-[12px] text-fg"
                     style={{ fontFamily: FONT.mono }}
                     title={f.name}
                   >
                     {f.name}
                   </span>
                   <span
-                    className="shrink-0 text-[10px] uppercase tracking-[0.1em] text-[var(--c-text-muted)]"
+                    className="shrink-0 text-[10px] uppercase tracking-[0.1em] text-muted"
                     style={{ fontFamily: FONT.mono }}
                   >
                     {formatBytes(f.size)}
@@ -307,7 +305,7 @@ export function UploadDialog({
                   <button
                     type="button"
                     onClick={() => removeFile(i)}
-                    className="shrink-0 text-[var(--c-text-muted)] transition-colors hover:text-red-500"
+                    className="shrink-0 text-muted transition-colors hover:text-danger"
                     aria-label={`Remove ${f.name}`}
                   >
                     ✕
@@ -319,10 +317,10 @@ export function UploadDialog({
 
           {/* Subject — fixed when locked, otherwise a pre-filled select. */}
           {lockedSubject ? (
-            <div className="space-y-1.5">
-              <MonoLabel>Subject</MonoLabel>
+            <div className="flex flex-col gap-1">
+              <Label>Subject</Label>
               <p
-                className="text-[14px] text-[var(--c-text)]"
+                className="text-[14px] text-fg"
                 style={{ fontFamily: FONT.serif }}
               >
                 {lockedSubject.name}
@@ -330,12 +328,10 @@ export function UploadDialog({
             </div>
           ) : (
             <Field label="Subject">
-              <select
+              <Select
                 value={subjectId}
                 onChange={(e) => setSubjectId(e.target.value)}
                 disabled={noSubjects}
-                className={`${inputCls} cursor-pointer`}
-                style={inputStyle}
               >
                 {subjects === undefined && <option value="">Loading…</option>}
                 {noSubjects && <option value="">No subjects available</option>}
@@ -344,12 +340,12 @@ export function UploadDialog({
                     {s.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </Field>
           )}
 
           <p
-            className="text-[11px] leading-relaxed text-[var(--c-text-muted)]"
+            className="text-[11px] leading-relaxed text-muted"
             style={{ fontFamily: FONT.mono }}
           >
             {files.length > 1
@@ -358,11 +354,11 @@ export function UploadDialog({
           </p>
 
           {/* Optional details disclosure */}
-          <div className="border-t pt-3" style={{ borderColor: C.borderLight }}>
+          <div className="border-t border-line-soft pt-3">
             <button
               type="button"
               onClick={() => setShowDetails((s) => !s)}
-              className="flex w-full items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--c-text-muted)] transition-colors hover:text-[var(--c-accent)]"
+              className="flex w-full items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted transition-colors hover:text-accent"
               style={{ fontFamily: FONT.mono }}
             >
               <span
@@ -386,111 +382,93 @@ export function UploadDialog({
                   <div className="space-y-4 pt-4">
                     {files.length > 1 ? (
                       <p
-                        className="text-[11px] text-[var(--c-text-muted)]"
+                        className="text-[11px] text-muted"
                         style={{ fontFamily: FONT.mono }}
                       >
                         Titles are taken from each filename for batch uploads.
                       </p>
                     ) : (
                       <Field label="Title">
-                        <input
+                        <Input
                           value={title}
                           onChange={(e) => {
                             setTitle(e.target.value);
                             setTitleTouched(true);
                           }}
                           placeholder="Defaults to the filename"
-                          className={inputCls}
-                          style={inputStyle}
                         />
                       </Field>
                     )}
 
                     <Field label="Description">
-                      <textarea
+                      <Textarea
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         rows={2}
-                        className={inputCls}
-                        style={inputStyle}
                       />
                     </Field>
 
                     <div className="grid grid-cols-2 gap-3">
                       <Field label="Type">
-                        <select
+                        <Select
                           value={documentType}
                           onChange={(e) =>
                             setDocumentType(e.target.value as DocumentType)
                           }
-                          className={`${inputCls} cursor-pointer`}
-                          style={inputStyle}
                         >
                           {DOCUMENT_TYPES.map((t) => (
                             <option key={t} value={t}>
                               {t}
                             </option>
                           ))}
-                        </select>
+                        </Select>
                       </Field>
                       <Field label="Language">
-                        <input
+                        <Input
                           value={language}
                           onChange={(e) => setLanguage(e.target.value)}
                           placeholder="en, ru, …"
-                          className={inputCls}
-                          style={inputStyle}
                         />
                       </Field>
                       <Field label="Year">
-                        <input
+                        <Input
                           type="number"
                           value={year}
                           onChange={(e) => setYear(e.target.value)}
-                          className={inputCls}
-                          style={inputStyle}
                         />
                       </Field>
                       <Field label="Pages">
-                        <input
+                        <Input
                           type="number"
                           value={pageCount}
                           onChange={(e) => setPageCount(e.target.value)}
-                          className={inputCls}
-                          style={inputStyle}
                         />
                       </Field>
                       <Field label="Author (source)">
-                        <input
+                        <Input
                           value={authorName}
                           onChange={(e) => setAuthorName(e.target.value)}
-                          className={inputCls}
-                          style={inputStyle}
                         />
                       </Field>
                       <Field label="Source URL">
-                        <input
+                        <Input
                           value={sourceUrl}
                           onChange={(e) => setSourceUrl(e.target.value)}
-                          className={inputCls}
-                          style={inputStyle}
                         />
                       </Field>
                     </div>
 
                     <Field label="Tags (comma-separated)">
-                      <input
+                      <Input
                         value={tagsInput}
                         onChange={(e) => setTagsInput(e.target.value)}
                         placeholder="calculus, midterm, 2024"
-                        className={inputCls}
-                        style={inputStyle}
                       />
                     </Field>
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <MonoLabel>Custom fields</MonoLabel>
+                        <Label>Custom fields</Label>
                         <button
                           type="button"
                           onClick={() =>
@@ -499,7 +477,7 @@ export function UploadDialog({
                               { id: crypto.randomUUID(), key: "", value: "" },
                             ])
                           }
-                          className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--c-accent)] transition-opacity hover:opacity-80"
+                          className="text-[10px] font-bold uppercase tracking-[0.12em] text-accent transition-opacity hover:opacity-80"
                           style={{ fontFamily: FONT.mono }}
                         >
                           + Add
@@ -507,7 +485,7 @@ export function UploadDialog({
                       </div>
                       {customFields.map((cf) => (
                         <div key={cf.id} className="flex gap-2">
-                          <input
+                          <Input
                             value={cf.key}
                             onChange={(e) =>
                               setCustomFields((arr) =>
@@ -519,10 +497,8 @@ export function UploadDialog({
                               )
                             }
                             placeholder="key"
-                            className={inputCls}
-                            style={inputStyle}
                           />
-                          <input
+                          <Input
                             value={cf.value}
                             onChange={(e) =>
                               setCustomFields((arr) =>
@@ -534,8 +510,6 @@ export function UploadDialog({
                               )
                             }
                             placeholder="value"
-                            className={inputCls}
-                            style={inputStyle}
                           />
                           <button
                             type="button"
@@ -544,7 +518,7 @@ export function UploadDialog({
                                 arr.filter((x) => x.id !== cf.id),
                               )
                             }
-                            className="shrink-0 px-2 text-[var(--c-text-muted)] transition-colors hover:text-[var(--c-text)]"
+                            className="shrink-0 px-2 text-muted transition-colors hover:text-fg"
                           >
                             ✕
                           </button>
@@ -559,7 +533,7 @@ export function UploadDialog({
 
           {shownError && (
             <p
-              className="text-[12px] text-red-500"
+              className="text-[12px] text-danger"
               style={{ fontFamily: FONT.mono }}
             >
               {shownError}
@@ -568,27 +542,26 @@ export function UploadDialog({
         </div>
 
         {/* Footer */}
-        <div
-          className="flex items-center justify-end gap-2 border-t px-5 py-3"
-          style={{ borderColor: C.borderLight }}
-        >
-          <Btn
+        <div className="flex items-center justify-end gap-2 border-t border-line-soft px-5 py-3">
+          <Button
             type="button"
             variant="ghost"
+            size="sm"
             onClick={onClose}
             disabled={uploading}
           >
             Cancel
-          </Btn>
+          </Button>
           <ProgressButton
             type="submit"
+            size="sm"
             progress={uploading ? upload.progress : 0}
             disabled={uploading || !hasFiles || expanding || noSubjects}
           >
             {submitLabel}
           </ProgressButton>
         </div>
-      </motion.form>
-    </motion.div>
+      </form>
+    </Modal>
   );
 }

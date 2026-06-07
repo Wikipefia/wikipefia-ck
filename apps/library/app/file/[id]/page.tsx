@@ -2,6 +2,7 @@
 
 import { api } from "@wikipefia/convex/api";
 import type { Id } from "@wikipefia/convex/dataModel";
+import { Badge, Button, SectionHeading } from "@wikipefia/ui";
 import { useMutation, useQuery } from "convex/react";
 import { motion } from "motion/react";
 import Link from "next/link";
@@ -12,7 +13,6 @@ import { Masthead } from "@/components/masthead";
 import { MetadataEditor } from "@/components/metadata-editor";
 import { RatingStars } from "@/components/rating-stars";
 import { TagEditor } from "@/components/tag-editor";
-import { Btn, SectionHeading, TypeBadge } from "@/components/ui";
 import {
   documentTypeCode,
   formatBytes,
@@ -38,10 +38,7 @@ export default function FileDetailPage() {
   if (file === undefined) {
     return (
       <Shell>
-        <p
-          className="text-[12px] text-[var(--c-text-muted)]"
-          style={{ fontFamily: FONT.mono }}
-        >
+        <p className="text-[12px] text-muted" style={{ fontFamily: FONT.mono }}>
           Loading…
         </p>
       </Shell>
@@ -50,15 +47,12 @@ export default function FileDetailPage() {
   if (file === null) {
     return (
       <Shell>
-        <p
-          className="text-[15px] text-[var(--c-text)]"
-          style={{ fontFamily: FONT.serif }}
-        >
+        <p className="text-[15px] text-fg" style={{ fontFamily: FONT.serif }}>
           File not found.
         </p>
         <Link
           href="/"
-          className="mt-2 inline-block text-[11px] uppercase tracking-[0.12em] text-[var(--c-accent)]"
+          className="mt-2 inline-block text-[11px] uppercase tracking-[0.12em] text-accent"
           style={{ fontFamily: FONT.mono }}
         >
           ← Back to library
@@ -85,7 +79,7 @@ export default function FileDetailPage() {
     <Shell>
       <Link
         href={subjectHref}
-        className="inline-block text-[10px] uppercase tracking-[0.18em] text-[var(--c-text-muted)] transition-colors hover:text-[var(--c-accent)]"
+        className="inline-block text-[10px] uppercase tracking-[0.18em] text-muted transition-colors hover:text-accent"
         style={{ fontFamily: FONT.mono }}
       >
         ← {file.subjectSlug}
@@ -98,21 +92,23 @@ export default function FileDetailPage() {
       >
         {/* Title block */}
         <div className="mt-4 flex items-start gap-4">
-          <TypeBadge code={documentTypeCode(file.documentType)} />
+          <Badge variant="accent" size="sm" className="tracking-[0.18em]">
+            {documentTypeCode(file.documentType)}
+          </Badge>
           <div className="min-w-0 flex-1">
             <h1
-              className="text-[26px] font-semibold leading-tight text-[var(--c-text)]"
+              className="text-[26px] font-semibold leading-tight text-fg"
               style={{ fontFamily: FONT.serif }}
             >
               {file.title}
             </h1>
             <p
-              className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-[var(--c-text-muted)]"
+              className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-muted"
               style={{ fontFamily: FONT.mono }}
             >
               <Link
                 href={subjectHref}
-                className="transition-colors hover:text-[var(--c-accent)]"
+                className="transition-colors hover:text-accent"
               >
                 {file.subjectSlug}
               </Link>
@@ -131,18 +127,22 @@ export default function FileDetailPage() {
               href={downloadUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex cursor-pointer items-center justify-center gap-1.5 border border-[var(--c-accent)] bg-[var(--c-accent)] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white transition-opacity hover:opacity-90"
+              className="inline-flex h-[28px] cursor-pointer items-center justify-center gap-1.5 border border-accent bg-accent px-2.5 text-[10px] font-bold uppercase tracking-[0.1em] text-white transition-opacity hover:opacity-80"
               style={{ fontFamily: FONT.mono }}
             >
               ↓ Download
             </a>
           )}
-          <Btn variant="outline" onClick={() => setEditing((e) => !e)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setEditing((e) => !e)}
+          >
             {editing ? "Close editor" : "Edit metadata"}
-          </Btn>
-          <Btn variant="danger" onClick={handleDelete}>
+          </Button>
+          <Button variant="danger" size="sm" onClick={handleDelete}>
             Delete
-          </Btn>
+          </Button>
         </div>
 
         {/* Two-column body on wide screens */}
@@ -225,18 +225,18 @@ export default function FileDetailPage() {
               </div>
               {canRequestTranscription && (
                 <div className="mt-3">
-                  <Btn
+                  <Button
                     variant="outline"
+                    size="sm"
                     onClick={() => requestTranscription({ fileId })}
                   >
                     Request transcription
-                  </Btn>
+                  </Button>
                 </div>
               )}
-              <p className="mt-3 text-[11px] leading-relaxed text-[var(--c-text-muted)]">
+              <p className="mt-3 text-[11px] leading-relaxed text-muted">
                 The transcription service isn’t live yet — requesting only flips
-                the status to{" "}
-                <span className="text-[var(--c-text)]">pending</span> for the
+                the status to <span className="text-fg">pending</span> for the
                 future pipeline.
               </p>
             </section>
@@ -271,18 +271,18 @@ function Meta({
   return (
     <>
       <dt
-        className="text-[10px] uppercase tracking-[0.12em] text-[var(--c-text-muted)]"
+        className="text-[10px] uppercase tracking-[0.12em] text-muted"
         style={{ fontFamily: FONT.mono }}
       >
         {label}
       </dt>
-      <dd className="break-words text-[var(--c-text)]">
+      <dd className="break-words text-fg">
         {link ? (
           <a
             href={value}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[var(--c-accent)] underline-offset-2 hover:underline"
+            className="text-accent underline-offset-2 hover:underline"
           >
             {value}
           </a>

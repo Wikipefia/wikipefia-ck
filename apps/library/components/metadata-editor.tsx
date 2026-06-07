@@ -1,9 +1,9 @@
 "use client";
 
 import { api } from "@wikipefia/convex/api";
+import { Button, Field, Input, Select, Textarea } from "@wikipefia/ui";
 import { useMutation } from "convex/react";
 import { type FormEvent, useState } from "react";
-import { Btn, Field, inputCls, inputStyle } from "@/components/ui";
 import { DOCUMENT_TYPES, type DocumentType } from "@/lib/metadata";
 import type { LibraryFileDetail } from "@/lib/types";
 
@@ -54,87 +54,68 @@ export function MetadataEditor({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <Field label="Title">
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className={inputCls}
-          style={inputStyle}
-        />
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} />
       </Field>
       <Field label="Description">
-        <textarea
+        <Textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={2}
-          className={inputCls}
-          style={inputStyle}
         />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Type">
-          <select
+          <Select
             value={documentType}
             onChange={(e) => setDocumentType(e.target.value as DocumentType)}
-            className={`${inputCls} cursor-pointer`}
-            style={inputStyle}
           >
             {DOCUMENT_TYPES.map((t) => (
               <option key={t} value={t}>
                 {t}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
         <Field label="Language">
-          <input
+          <Input
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
-            className={inputCls}
-            style={inputStyle}
           />
         </Field>
         <Field label="Year">
-          <input
+          <Input
             type="number"
             value={year}
             onChange={(e) => setYear(e.target.value)}
-            className={inputCls}
-            style={inputStyle}
           />
         </Field>
         <Field label="Pages">
-          <input
+          <Input
             type="number"
             value={pageCount}
             onChange={(e) => setPageCount(e.target.value)}
-            className={inputCls}
-            style={inputStyle}
           />
         </Field>
         <Field label="Author (source)">
-          <input
+          <Input
             value={authorName}
             onChange={(e) => setAuthorName(e.target.value)}
-            className={inputCls}
-            style={inputStyle}
           />
         </Field>
         <Field label="Source URL">
-          <input
+          <Input
             value={sourceUrl}
             onChange={(e) => setSourceUrl(e.target.value)}
-            className={inputCls}
-            style={inputStyle}
           />
         </Field>
       </div>
       <div className="flex justify-end gap-2">
-        <Btn type="button" variant="ghost" onClick={onDone}>
+        <Button type="button" variant="ghost" size="sm" onClick={onDone}>
           Cancel
-        </Btn>
-        <Btn type="submit" variant="primary" disabled={saving}>
+        </Button>
+        <Button type="submit" variant="primary" size="sm" disabled={saving}>
           {saving ? "Saving…" : "Save changes"}
-        </Btn>
+        </Button>
       </div>
     </form>
   );
