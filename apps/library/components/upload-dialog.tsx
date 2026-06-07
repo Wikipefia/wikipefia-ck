@@ -12,17 +12,18 @@ import {
   MonoLabel,
   ProgressButton,
 } from "@/components/ui";
+import { expandFiles } from "@/lib/expand-files";
 import { DOCUMENT_TYPES, type DocumentType, formatBytes } from "@/lib/metadata";
 import { C, FONT } from "@/lib/theme";
 import { useLibraryUpload } from "@/lib/use-library-upload";
 
 /**
- * Upload modal optimized for minimum friction: drop a file → press Upload.
- * Subject is pre-filled (or locked when opened from a subject page), the title
- * is derived from the filename, and every other field defaults server-side.
- * Rich metadata lives behind an optional, collapsed "Add details" disclosure.
- *
- * The whole modal is a drop target, so the file can be dropped anywhere.
+ * Upload modal optimized for minimum friction: drop files → press Upload.
+ * Supports multiple files at once, and archives (.zip) are expanded in the
+ * browser so each entry becomes its own material. Subject is pre-filled (or
+ * locked from a subject page); other metadata defaults server-side. Shared
+ * fields (subject, type, tags…) apply to every file in the batch; each file's
+ * title is taken from its filename.
  */
 export function UploadDialog({
   onClose,
@@ -34,7 +35,8 @@ export function UploadDialog({
 }) {
   const subjects = useQuery(api.library.subjects.list);
 
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [expanding, setExpanding] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [subjectId, setSubjectId] = useState(lockedSubjectId ?? "");
   const [title, setTitle] = useState("");
@@ -58,6 +60,7 @@ export function UploadDialog({
   const upload = useLibraryUpload(onClose);
   const uploading =
     upload.status === "uploading" || upload.status === "finalizing";
+  const single = files.length === 1;
 
   // Pre-select the first subject once the list loads (unless locked).
   useEffect(() => {
@@ -66,16 +69,35 @@ export function UploadDialog({
     }
   }, [subjects, subjectId, lockedSubjectId]);
 
-  function acceptFile(f: File) {
-    setFile(f);
+  // With exactly one file, derive a friendly title from its name.
+  useEffect(() => {
+    if (single && !titleTouched) {
+      setTitle(files[0].name.replace(/\.[^.]+$/, ""));
+    }
+  }, [files, single, titleTouched]);
+
+  async function acceptFiles(list: File[]) {
+    if (list.length === 0) return;
     setFormError(null);
-    if (!titleTouched) setTitle(f.name.replace(/\.[^.]+$/, ""));
+    setExpanding(true);
+    try {
+      const expanded = await expandFiles(list);
+      setFiles((prev) => [...prev, ...expanded]);
+    } catch {
+      setFormError("Couldn’t read one of the files.");
+    } finally {
+      setExpanding(false);
+    }
+  }
+
+  function removeFile(index: number) {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setFormError(null);
-    if (!file) return setFormError("Drop a file to upload.");
+    if (files.length === 0) return setFormError("Add a file to upload.");
     if (!subjectId) return setFormError("Pick a subject.");
 
     const tags = tagsInput
@@ -89,9 +111,10 @@ export function UploadDialog({
       if (k) customFieldsObj[k] = value;
     }
 
-    await upload.start(file, {
+    await upload.start(files, {
       subjectId,
-      title: title.trim() || undefined,
+      // Per-file titles come from each filename; only honor the field for one.
+      title: single ? title.trim() || undefined : undefined,
       description: description.trim() || undefined,
       documentType,
       language: language.trim() || undefined,
@@ -111,6 +134,7 @@ export function UploadDialog({
     ? subjects?.find((s) => s._id === lockedSubjectId)
     : undefined;
   const shownError = formError ?? upload.error;
+  const hasFiles = files.length > 0;
 
   const submitLabel =
     upload.status === "uploading"
@@ -119,7 +143,9 @@ export function UploadDialog({
         ? "Finalizing…"
         : upload.status === "error"
           ? "Try again"
-          : "Upload";
+          : files.length > 1
+            ? `Upload ${files.length} files`
+            : "Upload";
 
   return (
     <motion.div
@@ -151,8 +177,7 @@ export function UploadDialog({
           e.preventDefault();
           dragDepth.current = 0;
           setDragOver(false);
-          const f = e.dataTransfer.files?.[0];
-          if (f) acceptFile(f);
+          acceptFiles(Array.from(e.dataTransfer.files));
         }}
         className="relative w-full max-w-lg border shadow-2xl transition-colors"
         style={{
@@ -166,7 +191,7 @@ export function UploadDialog({
           style={{ borderColor: C.borderLight }}
         >
           <MonoLabel>
-            {lockedSubject ? `Upload → ${lockedSubject.name}` : "Upload file"}
+            {lockedSubject ? `Upload → ${lockedSubject.name}` : "Upload files"}
           </MonoLabel>
           <button
             type="button"
@@ -178,31 +203,38 @@ export function UploadDialog({
         </div>
 
         <div className="max-h-[72vh] space-y-4 overflow-y-auto px-5 py-5">
-          {/* Hero dropzone — switches to a clear "attached" state once a file
-              is chosen (solid accent border + tint + checkmark). */}
+          {/* Dropzone — tints accent once files are attached. */}
           <label
-            className={`flex cursor-pointer flex-col items-center justify-center gap-2 border px-4 py-9 text-center transition-colors ${
-              file ? "" : "border-dashed"
+            className={`flex cursor-pointer flex-col items-center justify-center gap-2 border px-4 py-7 text-center transition-colors ${
+              hasFiles ? "" : "border-dashed"
             }`}
             style={{
-              borderColor: file || dragOver ? C.accent : C.border,
-              backgroundColor: file
+              borderColor: hasFiles || dragOver ? C.accent : C.border,
+              backgroundColor: hasFiles
                 ? "color-mix(in srgb, var(--c-accent) 9%, transparent)"
                 : "transparent",
             }}
           >
             <input
               type="file"
+              multiple
               className="hidden"
               onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) acceptFile(f);
+                acceptFiles(Array.from(e.target.files ?? []));
+                e.target.value = "";
               }}
             />
-            {file ? (
+            {expanding ? (
+              <span
+                className="text-[13px] text-[var(--c-text)]"
+                style={{ fontFamily: FONT.mono }}
+              >
+                Expanding archive…
+              </span>
+            ) : hasFiles ? (
               <>
                 <span
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-[18px] leading-none text-white"
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-[16px] leading-none text-white"
                   style={{ backgroundColor: C.accent }}
                 >
                   ✓
@@ -211,19 +243,14 @@ export function UploadDialog({
                   className="text-[9px] font-bold uppercase tracking-[0.22em]"
                   style={{ fontFamily: FONT.mono, color: C.accent }}
                 >
-                  File attached
-                </span>
-                <span
-                  className="max-w-full truncate text-[14px] font-medium text-[var(--c-text)]"
-                  style={{ fontFamily: FONT.mono }}
-                >
-                  {file.name}
+                  {files.length} {files.length === 1 ? "file" : "files"}{" "}
+                  attached
                 </span>
                 <span
                   className="text-[10px] uppercase tracking-[0.15em] text-[var(--c-text-muted)]"
                   style={{ fontFamily: FONT.mono }}
                 >
-                  {formatBytes(file.size)} · click to replace
+                  Click or drop to add more
                 </span>
               </>
             ) : (
@@ -240,17 +267,55 @@ export function UploadDialog({
                 >
                   {dragOver
                     ? "Drop to attach"
-                    : "Drop a file or click to browse"}
+                    : "Drop files or a .zip — or click to browse"}
                 </span>
                 <span
                   className="text-[10px] uppercase tracking-[0.15em] text-[var(--c-text-muted)]"
                   style={{ fontFamily: FONT.mono }}
                 >
-                  Any type · up to 256 MB
+                  Multiple files & archives · up to 256 MB each
                 </span>
               </>
             )}
           </label>
+
+          {/* Attached file list */}
+          {hasFiles && (
+            <ul
+              className="max-h-44 divide-y overflow-y-auto border"
+              style={{ borderColor: C.borderLight }}
+            >
+              {files.map((f, i) => (
+                <li
+                  key={`${f.name}-${f.size}-${i}`}
+                  className="flex items-center justify-between gap-3 px-3 py-2"
+                  style={{ borderColor: C.borderLight }}
+                >
+                  <span
+                    className="min-w-0 flex-1 truncate text-[12px] text-[var(--c-text)]"
+                    style={{ fontFamily: FONT.mono }}
+                    title={f.name}
+                  >
+                    {f.name}
+                  </span>
+                  <span
+                    className="shrink-0 text-[10px] uppercase tracking-[0.1em] text-[var(--c-text-muted)]"
+                    style={{ fontFamily: FONT.mono }}
+                  >
+                    {formatBytes(f.size)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeFile(i)}
+                    className="shrink-0 text-[var(--c-text-muted)] transition-colors hover:text-red-500"
+                    aria-label={`Remove ${f.name}`}
+                  >
+                    ✕
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
 
           {/* Subject — fixed when locked, otherwise a pre-filled select. */}
           {lockedSubject ? (
@@ -287,8 +352,9 @@ export function UploadDialog({
             className="text-[11px] leading-relaxed text-[var(--c-text-muted)]"
             style={{ fontFamily: FONT.mono }}
           >
-            That’s all you need — title &amp; type are filled in automatically.
-            Everything else can be added later.
+            {files.length > 1
+              ? "Each file becomes its own material — titles come from the filenames. Subject, tags & type below apply to all."
+              : "That’s all you need — title & type are filled in automatically. Everything else can be added later."}
           </p>
 
           {/* Optional details disclosure */}
@@ -318,18 +384,27 @@ export function UploadDialog({
                   className="overflow-hidden"
                 >
                   <div className="space-y-4 pt-4">
-                    <Field label="Title">
-                      <input
-                        value={title}
-                        onChange={(e) => {
-                          setTitle(e.target.value);
-                          setTitleTouched(true);
-                        }}
-                        placeholder="Defaults to the filename"
-                        className={inputCls}
-                        style={inputStyle}
-                      />
-                    </Field>
+                    {files.length > 1 ? (
+                      <p
+                        className="text-[11px] text-[var(--c-text-muted)]"
+                        style={{ fontFamily: FONT.mono }}
+                      >
+                        Titles are taken from each filename for batch uploads.
+                      </p>
+                    ) : (
+                      <Field label="Title">
+                        <input
+                          value={title}
+                          onChange={(e) => {
+                            setTitle(e.target.value);
+                            setTitleTouched(true);
+                          }}
+                          placeholder="Defaults to the filename"
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                      </Field>
+                    )}
 
                     <Field label="Description">
                       <textarea
@@ -508,7 +583,7 @@ export function UploadDialog({
           <ProgressButton
             type="submit"
             progress={uploading ? upload.progress : 0}
-            disabled={uploading || !file || noSubjects}
+            disabled={uploading || !hasFiles || expanding || noSubjects}
           >
             {submitLabel}
           </ProgressButton>

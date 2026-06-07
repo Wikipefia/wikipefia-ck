@@ -58,12 +58,14 @@ export function useLibraryUpload(onDone?: () => void) {
   });
 
   const start = useCallback(
-    async (file: File, meta: LibraryUploadMeta) => {
+    async (files: File[], meta: LibraryUploadMeta) => {
+      if (files.length === 0) return;
       setError(null);
       setProgress(0);
-      setFileName(file.name);
+      // A short label for the banner/button: a single name, or a count.
+      setFileName(files.length === 1 ? files[0].name : `${files.length} files`);
       setStatus("uploading");
-      await startUpload([file], meta);
+      await startUpload(files, meta);
     },
     [startUpload],
   );

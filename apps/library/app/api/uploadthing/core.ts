@@ -36,7 +36,10 @@ const metadataSchema = z.object({
  */
 export const ourFileRouter = {
   libraryUploader: f({
-    blob: { maxFileSize: "256MB", maxFileCount: 1 },
+    // Multiple files per batch — and archives are expanded client-side into
+    // their individual entries before upload, so a single .zip can fan out
+    // into many of these slots. Each completed file becomes its own material.
+    blob: { maxFileSize: "256MB", maxFileCount: 50 },
   })
     .input(metadataSchema)
     // Pass the validated input through to onUploadComplete as `metadata`.

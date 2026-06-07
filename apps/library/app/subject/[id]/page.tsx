@@ -11,6 +11,7 @@ import { FileCard } from "@/components/file-card";
 import { Masthead } from "@/components/masthead";
 import { Btn, Pill } from "@/components/ui";
 import { UploadDialog } from "@/components/upload-dialog";
+import { expandFiles } from "@/lib/expand-files";
 import { C, FONT } from "@/lib/theme";
 import { useLibraryUpload } from "@/lib/use-library-upload";
 
@@ -51,12 +52,13 @@ export default function SubjectPage() {
     ? files.filter((f) => f.tags.includes(activeTag))
     : files;
 
-  function onDropFile(f: File) {
-    if (uploading) return; // one drop-upload at a time
-    upload.start(f, {
-      subjectId,
-      title: f.name.replace(/\.[^.]+$/, ""),
-    });
+  async function onDropFiles(list: File[]) {
+    if (uploading || list.length === 0) return; // one drop-upload at a time
+    // Expand archives client-side, then upload each entry as its own material.
+    const expanded = await expandFiles(list);
+    if (expanded.length === 0) return;
+    // Per-file titles come from the filenames (no shared title for a batch).
+    upload.start(expanded, { subjectId });
   }
 
   return (
@@ -82,8 +84,7 @@ export default function SubjectPage() {
         if (uploadOpen) return;
         dragDepth.current = 0;
         setDragOver(false);
-        const f = e.dataTransfer.files?.[0];
-        if (f) onDropFile(f);
+        onDropFiles(Array.from(e.dataTransfer.files));
       }}
     >
       <Masthead
@@ -123,7 +124,7 @@ export default function SubjectPage() {
             className="hidden shrink-0 text-[10px] uppercase tracking-[0.18em] text-[var(--c-text-muted)] sm:block"
             style={{ fontFamily: FONT.mono }}
           >
-            Drop a file anywhere to upload
+            Drop files or a .zip anywhere to upload
           </span>
         </div>
 
@@ -301,8 +302,8 @@ function EmptyState({ onUpload }: { onUpload: () => void }) {
         className="mt-3 max-w-xs text-[15px] text-[var(--c-text)]"
         style={{ fontFamily: FONT.serif }}
       >
-        Drop a file anywhere on this page — or use the button — to add the first
-        one.
+        Drop files or a .zip anywhere on this page — or use the button — to add
+        the first one.
       </p>
       <div className="mt-5">
         <Btn variant="primary" onClick={onUpload}>
