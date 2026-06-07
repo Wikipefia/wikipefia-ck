@@ -43,17 +43,39 @@ import { Button, Badge, Input, Modal, ThemeProvider, ThemeToggle } from "@wikipe
 <Badge variant="accent">New</Badge>
 ```
 
+## Components
+
+| Component          | Purpose                                              |
+| ------------------ | --------------------------------------------------- |
+| `Button`           | Action button                                       |
+| `IconButton`       | Square icon-only button                             |
+| `Badge`            | Tag / status pill                                   |
+| `Input` / `Textarea` / `Select` | Form controls                          |
+| `Switch`           | Boolean toggle                                      |
+| `SegmentedControl` | Mutually-exclusive option row (enum, locale, tabs)  |
+| `Menu` / `MenuItem`| Outside-click dropdown                              |
+| `Modal`            | Overlay + backdrop + dialog box                     |
+| `Card`             | Bordered surface                                    |
+| `HeaderBar`        | Inverted content-block / widget header              |
+| `Label` / `Field`  | Form label + label/control/hint group              |
+| `Kbd`              | Keyboard-key hint                                   |
+| `Separator`        | Divider line                                        |
+| `Spinner` / `Dots` | Loading ring / animated typing dots                 |
+| `EmptyState`       | Centered no-results placeholder                     |
+| `ThemeProvider` / `useTheme` / `ThemeToggle` | Light/dark theme        |
+
 ## Variants
 
 Variants are powered by [`class-variance-authority`](https://cva.style). Each
-component re-exports its `*Variants` function for advanced composition.
+variant-driven component re-exports its `*Variants` function for composition.
 
 | Component   | Variants                                              | Sizes                              |
 | ----------- | ----------------------------------------------------- | ---------------------------------- |
 | `Button`    | default, primary, outline, ghost, danger              | sm, md, lg, icon, icon-sm          |
 | `IconButton`| (Button variants)                                     | icon, icon-sm                      |
 | `Badge`     | default, muted, accent, solid, success, danger, warning, outline | sm, md                  |
-| `Input`     | —                                                     | sm, md                             |
+| `Input` / `Select` | —                                              | sm, md                             |
+| `Label`     | tone: muted, default                                  | sm, md                             |
 | `Card`      | default, strong, muted, plain                         | —                                  |
 
 ## Overrides

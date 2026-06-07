@@ -3,7 +3,7 @@
 import { useState, useEffect, Fragment } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { ThemeToggle } from "@wikipefia/ui";
+import { ThemeToggle, Button, Kbd, useTheme } from "@wikipefia/ui";
 import { C } from "@/lib/theme";
 import { SearchDialog } from "@/components/search/search-dialog";
 import { LocaleSwitcher } from "@/components/navigation/locale-switcher";
@@ -22,6 +22,15 @@ interface PageShellProps {
 }
 
 // ── PageShell ──────────────────────────────────────────
+
+// Localized wrapper around the shared ThemeToggle so the portal keeps its
+// translated, theme-aware accessible label / tooltip.
+function LocalizedThemeToggle() {
+  const t = useTranslations("common");
+  const { resolvedTheme } = useTheme();
+  const label = resolvedTheme === "dark" ? t("switchToLight") : t("switchToDark");
+  return <ThemeToggle aria-label={label} title={label} />;
+}
 
 export function PageShell({ children, breadcrumbs, locale }: PageShellProps) {
   const [searchOpen, setSearchOpen] = useState(false);
@@ -61,22 +70,20 @@ export function PageShell({ children, breadcrumbs, locale }: PageShellProps) {
               WIKIPEFIA
             </Link>
             <div className="flex items-center gap-2">
-              <button
+              <Button
+                variant="outline"
                 onClick={() => setSearchOpen(true)}
-                className="flex items-center gap-2 px-4 py-1.5 border cursor-pointer transition-colors group"
+                className="group gap-2 tracking-normal"
                 style={{ borderColor: C.borderLight }}
               >
                 <span className="text-xs uppercase font-medium group-hover:underline" style={{ color: C.textMuted }}>
                   {t("search")}
                 </span>
-                <span
-                  className="text-[10px] border px-1 py-px"
-                  style={{ borderColor: C.borderLight, color: C.textMuted }}
-                >
+                <Kbd style={{ borderColor: C.borderLight, color: C.textMuted }}>
                   ⌘K
-                </span>
-              </button>
-              <ThemeToggle />
+                </Kbd>
+              </Button>
+              <LocalizedThemeToggle />
               <LocaleSwitcher currentLocale={locale} />
             </div>
           </div>

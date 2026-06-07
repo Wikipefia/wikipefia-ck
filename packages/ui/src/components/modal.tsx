@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "../lib/cn";
 
@@ -8,6 +8,10 @@ export interface ModalProps {
   open: boolean;
   onClose: () => void;
   children: ReactNode;
+  /** Accessible name for the dialog (screen readers). */
+  "aria-label"?: string;
+  /** ID of an element that labels the dialog. */
+  "aria-labelledby"?: string;
   /** Vertical placement of the dialog box. Defaults to "top". */
   align?: "top" | "center";
   /** Extra classes for the dialog box (e.g. `max-w-2xl`). */
@@ -29,20 +33,28 @@ export function Modal({
   open,
   onClose,
   children,
+  "aria-label": ariaLabel,
+  "aria-labelledby": ariaLabelledBy,
   align = "top",
   className,
   closeOnBackdrop = true,
   closeOnEscape = true,
   zIndex = 50,
 }: ModalProps) {
+  // Keep the latest onClose without re-registering the listener every render.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   useEffect(() => {
     if (!open || !closeOnEscape) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onCloseRef.current();
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [open, closeOnEscape, onClose]);
+  }, [open, closeOnEscape]);
 
   return (
     <AnimatePresence>
@@ -61,11 +73,13 @@ export function Modal({
           <div
             className="absolute inset-0 bg-black/50"
             onClick={closeOnBackdrop ? onClose : undefined}
-            aria-hidden
+            aria-hidden="true"
           />
           <motion.div
             role="dialog"
-            aria-modal
+            aria-modal="true"
+            aria-label={ariaLabel}
+            aria-labelledby={ariaLabelledBy}
             className={cn(
               "relative mx-4 w-full max-w-2xl border-2 border-line bg-surface shadow-2xl",
               className,

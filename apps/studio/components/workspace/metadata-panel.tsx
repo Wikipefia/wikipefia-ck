@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { Button, Input, Label, Select, Textarea } from "@wikipefia/ui";
+import { useCallback, useState } from "react";
+import type { LocalizedString, Subject } from "@/lib/mock-data";
 import { C } from "@/lib/theme";
-import type { Subject, LocalizedString } from "@/lib/mock-data";
 
 interface MetadataPanelProps {
   subject: Subject;
@@ -24,61 +25,32 @@ function LocalizedField({
 }) {
   return (
     <div className="mb-5">
-      <label
-        className="block text-[9px] font-bold uppercase tracking-[0.15em] mb-2"
-        style={{ fontFamily: "var(--font-mono)", color: C.textMuted }}
-      >
+      <Label size="sm" className="mb-2">
         {label}
-      </label>
+      </Label>
       <div className="grid grid-cols-3 gap-2">
         {LOCALES.map((locale) => (
           <div key={locale}>
-            <div
-              className="text-[8px] font-bold uppercase tracking-[0.2em] mb-1"
-              style={{ fontFamily: "var(--font-mono)", color: C.textMuted }}
-            >
+            <Label size="sm" className="text-[8px] tracking-[0.2em] mb-1">
               {locale}
-            </div>
+            </Label>
             {multiline ? (
-              <textarea
+              <Textarea
                 value={value[locale]}
                 onChange={(e) =>
                   onChange({ ...value, [locale]: e.target.value })
                 }
                 rows={3}
-                className="w-full px-2.5 py-1.5 text-[12px] border outline-none transition-colors resize-none"
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  backgroundColor: C.bgWhite,
-                  borderColor: C.borderLight,
-                  color: C.text,
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = C.accent;
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = C.borderLight;
-                }}
+                className="resize-none"
+                style={{ fontFamily: "var(--font-mono)" }}
               />
             ) : (
-              <input
+              <Input
                 value={value[locale]}
                 onChange={(e) =>
                   onChange({ ...value, [locale]: e.target.value })
                 }
-                className="w-full px-2.5 py-1.5 text-[12px] border outline-none transition-colors"
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  backgroundColor: C.bgWhite,
-                  borderColor: C.borderLight,
-                  color: C.text,
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = C.accent;
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = C.borderLight;
-                }}
+                style={{ fontFamily: "var(--font-mono)" }}
               />
             )}
           </div>
@@ -101,29 +73,14 @@ function ScalarField({
 }) {
   return (
     <div>
-      <label
-        className="block text-[9px] font-bold uppercase tracking-[0.15em] mb-2"
-        style={{ fontFamily: "var(--font-mono)", color: C.textMuted }}
-      >
+      <Label size="sm" className="mb-2">
         {label}
-      </label>
-      <input
+      </Label>
+      <Input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-2.5 py-1.5 text-[12px] border outline-none transition-colors"
-        style={{
-          fontFamily: "var(--font-mono)",
-          backgroundColor: C.bgWhite,
-          borderColor: C.borderLight,
-          color: C.text,
-        }}
-        onFocus={(e) => {
-          e.currentTarget.style.borderColor = C.accent;
-        }}
-        onBlur={(e) => {
-          e.currentTarget.style.borderColor = C.borderLight;
-        }}
+        style={{ fontFamily: "var(--font-mono)" }}
       />
     </div>
   );
@@ -162,7 +119,10 @@ export function MetadataPanel({ subject, onUpdate }: MetadataPanelProps) {
   };
 
   return (
-    <div className="h-full overflow-y-auto" style={{ backgroundColor: C.bgWhite }}>
+    <div
+      className="h-full overflow-y-auto"
+      style={{ backgroundColor: C.bgWhite }}
+    >
       <div className="max-w-3xl mx-auto px-8 py-6">
         {/* Header */}
         <div
@@ -183,18 +143,18 @@ export function MetadataPanel({ subject, onUpdate }: MetadataPanelProps) {
               {subject.name.en}
             </h1>
           </div>
-          <button
+          <Button
             type="button"
             onClick={handleSave}
-            className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-[0.1em] cursor-pointer transition-colors"
+            variant="primary"
             style={{
-              fontFamily: "var(--font-mono)",
               backgroundColor: saved ? "#059669" : C.accent,
+              borderColor: saved ? "#059669" : C.accent,
               color: "#fff",
             }}
           >
-            {saved ? "\u2713 Saved" : "Save changes"}
-          </button>
+            {saved ? "✓ Saved" : "Save changes"}
+          </Button>
         </div>
 
         {/* General */}
@@ -248,16 +208,10 @@ export function MetadataPanel({ subject, onUpdate }: MetadataPanelProps) {
               onChange={(v) => updateMeta("credits", parseInt(v) || 1)}
             />
             <div>
-              <label
-                className="block text-[9px] font-bold uppercase tracking-[0.15em] mb-2"
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  color: C.textMuted,
-                }}
-              >
+              <Label size="sm" className="mb-2">
                 Difficulty
-              </label>
-              <select
+              </Label>
+              <Select
                 value={local.metadata.difficulty}
                 onChange={(e) =>
                   updateMeta(
@@ -265,18 +219,12 @@ export function MetadataPanel({ subject, onUpdate }: MetadataPanelProps) {
                     e.target.value as Subject["metadata"]["difficulty"],
                   )
                 }
-                className="w-full px-2.5 py-1.5 text-[12px] border outline-none cursor-pointer transition-colors"
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  backgroundColor: C.bgWhite,
-                  borderColor: C.borderLight,
-                  color: C.text,
-                }}
+                style={{ fontFamily: "var(--font-mono)" }}
               >
                 <option value="beginner">Beginner</option>
                 <option value="medium">Medium</option>
                 <option value="advanced">Advanced</option>
-              </select>
+              </Select>
             </div>
           </div>
           <LocalizedField
@@ -301,26 +249,15 @@ export function MetadataPanel({ subject, onUpdate }: MetadataPanelProps) {
           <div className="space-y-2">
             {local.teachers.map((teacher, i) => (
               <div key={i} className="flex items-center gap-2">
-                <input
+                <Input
                   value={teacher}
                   onChange={(e) => {
                     const next = [...local.teachers];
                     next[i] = e.target.value;
                     update("teachers", next);
                   }}
-                  className="flex-1 px-2.5 py-1.5 text-[12px] border outline-none transition-colors"
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    backgroundColor: C.bgWhite,
-                    borderColor: C.borderLight,
-                    color: C.text,
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = C.accent;
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = C.borderLight;
-                  }}
+                  className="flex-1"
+                  style={{ fontFamily: "var(--font-mono)" }}
                 />
                 <button
                   type="button"
@@ -343,18 +280,15 @@ export function MetadataPanel({ subject, onUpdate }: MetadataPanelProps) {
                 </button>
               </div>
             ))}
-            <button
+            <Button
               type="button"
               onClick={() => update("teachers", [...local.teachers, ""])}
-              className="text-[10px] font-bold uppercase tracking-[0.1em] px-3 py-1 cursor-pointer transition-colors border"
-              style={{
-                fontFamily: "var(--font-mono)",
-                color: C.accent,
-                borderColor: C.accent,
-              }}
+              variant="outline"
+              size="sm"
+              style={{ color: C.accent, borderColor: C.accent }}
             >
               + Add Teacher
-            </button>
+            </Button>
           </div>
         </section>
 

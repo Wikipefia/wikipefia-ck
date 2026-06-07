@@ -3,6 +3,7 @@
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { Badge } from "@wikipefia/ui";
 import { C, getSubjectTheme } from "@/lib/theme";
 import type { SubjectManifest } from "@/lib/content/types";
 import type { Locale } from "@/lib/i18n/config";
@@ -38,27 +39,27 @@ export function SubjectFront({ subject, locale, children }: SubjectFrontProps) {
             transition={{ duration: 0.3 }}
           >
             <div className="flex flex-wrap items-center gap-2 mb-6">
-              <span
-                className="text-[11px] font-bold px-2 uppercase tracking-wider"
+              <Badge
+                className="border-0 text-[11px] px-2 tracking-wider"
                 style={{ backgroundColor: theme.accent, color: "#fff" }}
               >
                 {theme.icon} {t("subject")}
-              </span>
+              </Badge>
               {config.metadata?.semester && (
-                <span
-                  className="text-[11px] font-bold px-2 py-0.5 uppercase tracking-wider border"
+                <Badge
+                  className="text-[11px] px-2 py-0.5 tracking-wider"
                   style={{ borderColor: C.borderLight, color: C.textMuted }}
                 >
                   {t("semesterNumber", { number: config.metadata.semester })}
-                </span>
+                </Badge>
               )}
               {config.metadata?.credits && (
-                <span
-                  className="text-[11px] font-bold px-2 py-0.5 uppercase tracking-wider border"
+                <Badge
+                  className="text-[11px] px-2 py-0.5 tracking-wider"
                   style={{ borderColor: C.borderLight, color: C.textMuted }}
                 >
                   {t("ects", { number: config.metadata.credits })}
-                </span>
+                </Badge>
               )}
             </div>
 

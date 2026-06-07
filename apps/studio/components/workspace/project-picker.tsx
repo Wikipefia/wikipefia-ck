@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
-import { Modal } from "@wikipefia/ui";
-import { C } from "@/lib/theme";
+import { Badge, EmptyState, Kbd, Label, Modal } from "@wikipefia/ui";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ProjectRecord } from "@/lib/mock-data";
+import { C } from "@/lib/theme";
 
 interface ProjectPickerProps {
   projects: ProjectRecord[];
@@ -81,91 +81,92 @@ export function ProjectPicker({
   let itemIndex = 0;
 
   return (
-    <Modal open onClose={onClose} align="top" className="max-w-md" zIndex={100}>
-        <div
-          className="px-4 py-3 border-b"
-          style={{ borderColor: C.borderLight }}
-        >
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search projects\u2026"
-            className="w-full text-[13px] bg-transparent outline-none"
-            style={{ fontFamily: "var(--font-mono)", color: C.text }}
-          />
-        </div>
+    <Modal
+      open
+      onClose={onClose}
+      closeOnEscape={false}
+      aria-label="Project picker"
+      align="top"
+      className="max-w-md"
+      zIndex={100}
+    >
+      <div
+        className="px-4 py-3 border-b"
+        style={{ borderColor: C.borderLight }}
+      >
+        <input
+          ref={inputRef}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search projects\u2026"
+          className="w-full text-[13px] bg-transparent outline-none"
+          style={{ fontFamily: "var(--font-mono)", color: C.text }}
+        />
+      </div>
 
-        <div className="max-h-[320px] overflow-y-auto py-1">
-          {recentFiltered.length > 0 && (
-            <>
-              <SectionLabel>Recent</SectionLabel>
-              {recentFiltered.map((s) => {
-                const idx = itemIndex++;
-                return (
-                  <ProjectRow
-                    key={`recent-${s.slug}`}
-                    project={s}
-                    focused={idx === focusIdx}
-                    isCurrent={false}
-                    onSelect={() => onSelect(s.slug)}
-                    onHover={() => setFocusIdx(idx)}
-                  />
-                );
-              })}
-            </>
-          )}
-
-          <SectionLabel>
-            {query.trim() ? "Results" : "All projects"}
-          </SectionLabel>
-          {filtered.length === 0 ? (
-            <div
-              className="px-4 py-3 text-[11px]"
-              style={{ fontFamily: "var(--font-mono)", color: C.textMuted }}
-            >
-              No projects found
-            </div>
-          ) : (
-            filtered.map((s) => {
+      <div className="max-h-[320px] overflow-y-auto py-1">
+        {recentFiltered.length > 0 && (
+          <>
+            <SectionLabel>Recent</SectionLabel>
+            {recentFiltered.map((s) => {
               const idx = itemIndex++;
               return (
                 <ProjectRow
-                  key={`all-${s.slug}`}
+                  key={`recent-${s.slug}`}
                   project={s}
                   focused={idx === focusIdx}
-                  isCurrent={s.slug === currentSlug}
+                  isCurrent={false}
                   onSelect={() => onSelect(s.slug)}
                   onHover={() => setFocusIdx(idx)}
                 />
               );
-            })
-          )}
-        </div>
+            })}
+          </>
+        )}
 
-        <div
-          className="px-4 py-2 border-t flex items-center gap-3"
-          style={{ borderColor: C.borderLight }}
+        <SectionLabel>{query.trim() ? "Results" : "All projects"}</SectionLabel>
+        {filtered.length === 0 ? (
+          <EmptyState className="text-[11px] normal-case tracking-normal">
+            No projects found
+          </EmptyState>
+        ) : (
+          filtered.map((s) => {
+            const idx = itemIndex++;
+            return (
+              <ProjectRow
+                key={`all-${s.slug}`}
+                project={s}
+                focused={idx === focusIdx}
+                isCurrent={s.slug === currentSlug}
+                onSelect={() => onSelect(s.slug)}
+                onHover={() => setFocusIdx(idx)}
+              />
+            );
+          })
+        )}
+      </div>
+
+      <div
+        className="px-4 py-2 border-t flex items-center gap-3"
+        style={{ borderColor: C.borderLight }}
+      >
+        <span
+          className="flex items-center gap-1.5 text-[9px] tracking-wider"
+          style={{ fontFamily: "var(--font-mono)", color: C.textMuted }}
         >
-          <span
-            className="text-[9px] tracking-wider"
-            style={{ fontFamily: "var(--font-mono)", color: C.textMuted }}
-          >
-            &uarr;&darr; navigate &middot; &#x23CE; open &middot; esc close
-          </span>
-        </div>
+          <Kbd>&uarr;&darr;</Kbd> navigate &middot; <Kbd>&#x23CE;</Kbd> open
+          &middot; <Kbd>esc</Kbd> close
+        </span>
+      </div>
     </Modal>
   );
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      className="px-4 pt-2 pb-1 text-[8px] font-bold uppercase tracking-[0.2em]"
-      style={{ fontFamily: "var(--font-mono)", color: C.textMuted }}
-    >
+    <Label size="sm" className="px-4 pt-2 pb-1 text-[8px] tracking-[0.2em]">
       {children}
-    </div>
+    </Label>
   );
 }
 
@@ -215,16 +216,13 @@ function ProjectRow({
       </div>
       <div className="flex items-center gap-2 shrink-0 ml-3">
         {isCurrent && (
-          <span
-            className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5"
-            style={{
-              fontFamily: "var(--font-mono)",
-              color: C.accent,
-              border: `1px solid ${C.accent}`,
-            }}
+          <Badge
+            variant="accent"
+            size="sm"
+            className="text-[8px] tracking-wider"
           >
             Open
-          </span>
+          </Badge>
         )}
         {project.lastSynced && (
           <span

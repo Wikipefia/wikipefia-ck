@@ -9,6 +9,7 @@ import {
 } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { C } from "@wikipefia/mdx-renderer/theme";
+import { Button, EmptyState, Textarea } from "@wikipefia/ui";
 import type { TutorTopic } from "../../types";
 import { useUpdateTopicPlan } from "../hooks/use-threads";
 
@@ -196,12 +197,12 @@ export function TopicListPanel({
 
       <div className="flex-1 overflow-y-auto px-2 py-2">
         {sortedTopics.length === 0 ? (
-          <div
-            className="px-4 py-8 text-center text-[12px]"
+          <EmptyState
+            className="px-4 py-8 text-[12px] normal-case tracking-normal"
             style={{ color: C.textMuted, fontFamily: "var(--font-serif)" }}
           >
             План пуст. {locked ? null : 'Нажмите "+ Добавить тему" ниже или "Перепланировать".'}
-          </div>
+          </EmptyState>
         ) : null}
         <AnimatePresence initial={false}>
           {sortedTopics.map((topic, idx) => (
@@ -268,13 +269,13 @@ export function TopicListPanel({
         >
           {replanOpen ? (
             <div className="flex flex-col gap-2">
-              <textarea
+              <Textarea
                 value={replanText}
                 onChange={(e) => setReplanText(e.target.value)}
                 placeholder="напр. сделай темы крупнее / меньше квантовой механики / добавь больше примеров"
                 rows={3}
                 disabled={replanSubmitting}
-                className="border px-2 py-1.5 text-[12px] outline-none resize-y disabled:opacity-60"
+                className="px-2 py-1.5 text-[12px] resize-y"
                 style={{
                   fontFamily: "var(--font-serif)",
                   borderColor: C.border,
@@ -293,53 +294,49 @@ export function TopicListPanel({
                   Опционально — инструкции для перепланирования
                 </span>
                 <div className="flex items-center gap-1.5">
-                  <button
+                  <Button
                     type="button"
+                    size="sm"
+                    variant="ghost"
                     onClick={() => {
                       setReplanOpen(false);
                       setReplanText("");
                     }}
                     disabled={replanSubmitting}
-                    className="border h-[28px] px-2.5 text-[10px] font-bold uppercase tracking-[0.1em] cursor-pointer disabled:opacity-40"
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      borderColor: "transparent",
-                      color: C.textMuted,
-                    }}
+                    style={{ color: C.textMuted }}
                   >
                     Отмена
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    size="sm"
                     onClick={handleSubmitReplan}
                     disabled={replanSubmitting}
-                    className="border-2 h-[28px] px-3 text-[10px] font-bold uppercase tracking-[0.1em] cursor-pointer disabled:opacity-40"
+                    className="border-2"
                     style={{
-                      fontFamily: "var(--font-mono)",
                       borderColor: C.accent,
                       backgroundColor: C.accent,
                       color: "#fff",
                     }}
                   >
                     {replanSubmitting ? "..." : "Перепланировать"}
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
           ) : (
-            <button
+            <Button
               type="button"
               onClick={() => setReplanOpen(true)}
-              className="w-full px-3 py-2 border text-[11px] uppercase tracking-[0.1em] cursor-pointer hover:opacity-80"
+              className="w-full"
               style={{
-                fontFamily: "var(--font-mono)",
                 borderColor: C.border,
                 color: C.text,
                 backgroundColor: C.bgWhite,
               }}
             >
               ↻ Перепланировать с нуля
-            </button>
+            </Button>
           )}
         </div>
       ) : null}

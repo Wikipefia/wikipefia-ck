@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { Badge } from "@wikipefia/ui";
 import { C } from "@/lib/theme";
 import type { ArticleFrontmatterType } from "@/lib/schemas";
 import type { TocEntry } from "@/lib/content/types";
@@ -260,19 +261,19 @@ export function ArticlePage({
         animate={{ opacity: 1 }}
       >
         <div className="flex flex-wrap items-center gap-2 mb-4">
-          <span
-            className="text-[11px] font-bold px-2 py-0.5 uppercase tracking-wider"
+          <Badge
+            className="border-0 text-[11px] px-2 py-0.5 tracking-wider"
             style={{ backgroundColor: C.headerBg, color: C.headerText }}
           >
             {entityType === "subject" ? tEntity("subjectArticle") : tEntity("teacherArticle")}
-          </span>
+          </Badge>
           {frontmatter.estimatedReadTime && (
-            <span
-              className="text-[11px] px-2 py-0.5 uppercase tracking-wider border"
+            <Badge
+              className="text-[11px] px-2 py-0.5 font-normal tracking-wider"
               style={{ borderColor: C.borderLight, color: C.textMuted }}
             >
               {t("readTime", { minutes: frontmatter.estimatedReadTime })}
-            </span>
+            </Badge>
           )}
         </div>
 

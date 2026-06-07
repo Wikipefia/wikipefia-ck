@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { IconButton, type IconButtonProps } from "../components/icon-button";
 import { useTheme } from "./theme-provider";
 
@@ -15,6 +15,7 @@ export interface ThemeToggleProps extends Omit<IconButtonProps, "aria-label"> {
 export function ThemeToggle({
   variant = "outline",
   "aria-label": ariaLabel = "Toggle theme",
+  onClick,
   ...rest
 }: ThemeToggleProps) {
   const { resolvedTheme, toggleTheme } = useTheme();
@@ -22,14 +23,27 @@ export function ThemeToggle({
 
   useEffect(() => setMounted(true), []);
 
+  // Until mounted, `resolvedTheme` is still the provider default, so render a
+  // disabled placeholder rather than risk showing the wrong icon / toggling.
+  if (!mounted) {
+    return (
+      <IconButton variant={variant} aria-label={ariaLabel} disabled {...rest}>
+        <span />
+      </IconButton>
+    );
+  }
+
   return (
     <IconButton
       variant={variant}
-      onClick={toggleTheme}
       aria-label={ariaLabel}
       {...rest}
+      onClick={(event: MouseEvent<HTMLButtonElement>) => {
+        toggleTheme();
+        onClick?.(event);
+      }}
     >
-      <span key={mounted ? resolvedTheme : "initial"} className="theme-toggle-icon">
+      <span key={resolvedTheme} className="theme-toggle-icon">
         {resolvedTheme === "dark" ? "●" : "☀"}
       </span>
     </IconButton>

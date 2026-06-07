@@ -19,15 +19,14 @@ interface ThemeContextValue {
   toggleTheme: () => void;
 }
 
-const ThemeContext = createContext<ThemeContextValue>({
-  theme: "system",
-  resolvedTheme: "light",
-  setTheme: () => {},
-  toggleTheme: () => {},
-});
+const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 export function useTheme() {
-  return useContext(ThemeContext);
+  const ctx = useContext(ThemeContext);
+  if (!ctx) {
+    throw new Error("useTheme must be used within a ThemeProvider");
+  }
+  return ctx;
 }
 
 function getSystemTheme(): ResolvedTheme {
@@ -35,6 +34,27 @@ function getSystemTheme(): ResolvedTheme {
   return window.matchMedia("(prefers-color-scheme: dark)").matches
     ? "dark"
     : "light";
+}
+
+/** Read the persisted theme, tolerating disabled/unavailable storage. */
+function readStoredTheme(): Theme {
+  try {
+    const stored = localStorage.getItem("theme");
+    return stored === "light" || stored === "dark" || stored === "system"
+      ? stored
+      : "system";
+  } catch {
+    return "system";
+  }
+}
+
+/** Persist the theme, ignoring failures (e.g. storage disabled). */
+function writeStoredTheme(theme: Theme) {
+  try {
+    localStorage.setItem("theme", theme);
+  } catch {
+    // Storage unavailable (private mode / disabled) — switch without persisting.
+  }
 }
 
 function resolveTheme(theme: Theme): ResolvedTheme {
@@ -54,8 +74,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   // Initialize from localStorage on mount.
   useEffect(() => {
-    const stored = localStorage.getItem("theme") as Theme | null;
-    const initial = stored || "system";
+    const initial = readStoredTheme();
     setThemeState(initial);
     const resolved = resolveTheme(initial);
     setResolvedTheme(resolved);
@@ -78,7 +97,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme);
-    localStorage.setItem("theme", newTheme);
+    writeStoredTheme(newTheme);
     const resolved = resolveTheme(newTheme);
     setResolvedTheme(resolved);
     applyTheme(resolved);
@@ -88,7 +107,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setThemeState((prev) => {
       const currentResolved = resolveTheme(prev);
       const next = currentResolved === "dark" ? "light" : "dark";
-      localStorage.setItem("theme", next);
+      writeStoredTheme(next);
       applyTheme(next);
       setResolvedTheme(next);
       return next;

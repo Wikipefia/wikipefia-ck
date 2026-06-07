@@ -5,10 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../lib/cn";
 
 export const inputVariants = cva(
-  cn(
-    "w-full border bg-surface text-fg outline-none transition-colors",
-    "placeholder:text-muted focus:border-accent disabled:opacity-50",
-  ),
+  "w-full border bg-surface text-fg outline-none transition-colors placeholder:text-muted focus:border-accent disabled:opacity-50",
   {
     variants: {
       size: {
