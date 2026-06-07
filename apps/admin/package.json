@@ -10,7 +10,7 @@
     "format": "biome format --write"
   },
   "dependencies": {
-    "@next/env": "^16.2.4",
+    "@next/env": "16.1.6",
     "@wikipefia/convex": "workspace:*",
     "@wikipefia/mdx-compiler": "workspace:*",
     "@wikipefia/ui": "workspace:*",
