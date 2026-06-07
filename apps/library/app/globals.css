@@ -1,0 +1,30 @@
+@import "tailwindcss";
+@import "@wikipefia/ui/styles.css";
+@source "../../../packages/ui/src";
+
+/*
+ * The core palette, Tailwind color mapping (bg-surface, text-fg, border-line…),
+ * and shared base utilities (.noise-overlay, .theme-toggle-icon) all live in
+ * @wikipefia/ui/styles.css. Only app-level base styles remain here.
+ */
+
+@theme inline {
+  --color-background: var(--c-bg);
+  --color-foreground: var(--c-text);
+}
+
+* {
+  scrollbar-width: thin;
+}
+
+html,
+body {
+  min-height: 100%;
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: var(--font-mono), sans-serif;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--c-accent) 22%, transparent);
+}

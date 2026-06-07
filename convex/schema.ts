@@ -201,4 +201,132 @@ export default defineSchema({
   })
     .index("by_tool_call_ord", ["toolCallId", "ord"])
     .index("by_user_thread", ["userId", "parentThreadId"]),
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Library: file storage with rich, structured metadata.
+  //
+  // Files are uploaded to UploadThing (temporary CDN) by the client, then the
+  // bytes are ingested into Convex Storage (`_storage`) as their permanent
+  // home; the UploadThing copy is deleted after ingest. Files are categorized
+  // by `subject` (a row in `projects` where `type === "subject"`) and carry
+  // open-ended metadata, comments + threaded replies, tags, and 1–5 ratings.
+  //
+  // No user attribution in v1 (no auth, no `userId`).
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /** One row per stored file. The blob lives in Convex Storage (`storageId`). */
+  libraryFiles: defineTable({
+    /** Permanent Convex Storage blob holding the file bytes. */
+    storageId: v.id("_storage"),
+    /** Subject this file belongs to (a `projects` row, `type === "subject"`). */
+    subjectId: v.id("projects"),
+    /** Denormalized subject slug for display without an extra join. */
+    subjectSlug: v.string(),
+    /** Original filename as uploaded. */
+    originalName: v.string(),
+    /** Human-facing display title (defaults to originalName when omitted). */
+    title: v.string(),
+    description: v.optional(v.string()),
+    contentType: v.string(),
+    size: v.number(),
+
+    // ── Rich metadata ──
+    documentType: v.union(
+      v.literal("lecture"),
+      v.literal("textbook"),
+      v.literal("exam"),
+      v.literal("notes"),
+      v.literal("article"),
+      v.literal("presentation"),
+      v.literal("other"),
+    ),
+    language: v.optional(v.string()),
+    year: v.optional(v.number()),
+    /** Author of the source material — NOT the uploader (no attribution in v1). */
+    authorName: v.optional(v.string()),
+    sourceUrl: v.optional(v.string()),
+    pageCount: v.optional(v.number()),
+    /** Open-ended extra metadata as free-form string key/value pairs. */
+    customFields: v.optional(v.record(v.string(), v.string())),
+
+    // ── Denormalized rating aggregate (avg derived in UI) ──
+    ratingCount: v.number(),
+    ratingSum: v.number(),
+
+    // ── Transcription groundwork (future service; see libraryTranscriptions) ──
+    transcriptionStatus: v.union(
+      v.literal("none"),
+      v.literal("pending"),
+      v.literal("processing"),
+      v.literal("completed"),
+      v.literal("failed"),
+    ),
+  })
+    .index("by_subject", ["subjectId"])
+    .index("by_transcription_status", ["transcriptionStatus"]),
+
+  /** Threaded comments on a file. Soft-deleted to preserve thread structure. */
+  libraryComments: defineTable({
+    fileId: v.id("libraryFiles"),
+    /** Parent comment for replies; undefined ⇒ top-level comment. */
+    parentCommentId: v.optional(v.id("libraryComments")),
+    body: v.string(),
+    /** Soft-delete timestamp; set so replies keep their anchor in the tree. */
+    deletedAt: v.optional(v.number()),
+  })
+    .index("by_file", ["fileId"])
+    .index("by_parent", ["parentCommentId"]),
+
+  /** Individual 1–5 rating events. Append-only (no per-user dedup in v1). */
+  libraryRatings: defineTable({
+    fileId: v.id("libraryFiles"),
+    value: v.number(), // 1–5
+  }).index("by_file", ["fileId"]),
+
+  /**
+   * Tag join table — the source of truth for tags. A separate table (rather
+   * than an array on libraryFiles) avoids the unbounded-array pitfall and
+   * enables efficient tag filtering via the `by_tag` index.
+   */
+  libraryFileTags: defineTable({
+    fileId: v.id("libraryFiles"),
+    tag: v.string(),
+  })
+    .index("by_file", ["fileId"])
+    .index("by_tag", ["tag"])
+    // Exact (file, tag) lookups for dedupe/removal regardless of tag count.
+    .index("by_file_and_tag", ["fileId", "tag"]),
+
+  /**
+   * Groundwork for the FUTURE transcription service (not implemented in v1).
+   * One row per file tracks the lifecycle of adding a markdown transcription.
+   */
+  libraryTranscriptions: defineTable({
+    fileId: v.id("libraryFiles"),
+    status: v.union(
+      v.literal("none"),
+      v.literal("pending"),
+      v.literal("processing"),
+      v.literal("completed"),
+      v.literal("failed"),
+    ),
+    /** The future markdown file, once produced, stored in Convex Storage. */
+    markdownStorageId: v.optional(v.id("_storage")),
+    /** Model id the future service used. */
+    model: v.optional(v.string()),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_file", ["fileId"]),
+
+  /**
+   * Denormalized per-subject file count. Powers the subject cards on the home
+   * page without scanning the files table (follows the "denormalized counter"
+   * guideline). Maintained in `library/files.ts` create/remove. A subject only
+   * gets a row here once it has had at least one file.
+   */
+  librarySubjectStats: defineTable({
+    subjectId: v.id("projects"),
+    fileCount: v.number(),
+  }).index("by_subject", ["subjectId"]),
 });

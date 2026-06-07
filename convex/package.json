@@ -8,7 +8,10 @@
     "check-types": "tsc --noEmit"
   },
   "exports": {
-    "./api": "./_generated/api.js"
+    "./api": "./_generated/api.js",
+    "./dataModel": {
+      "types": "./_generated/dataModel.d.ts"
+    }
   },
   "dependencies": {
     "@convex-dev/agent": "^0.6.1",
