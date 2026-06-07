@@ -9,6 +9,7 @@ apps/
   portal/       Public portal
   studio/       Content editing tool
   chat/         AI tutor chat
+  admin/        Management console
 convex/         Convex backend
 packages/
   chat/         Reusable chat module
@@ -70,6 +71,22 @@ pnpm --filter chat build
 ```
 
 More details: `apps/chat/README.md`.
+
+### `apps/admin`
+
+Management console for the whole project.
+
+- Next.js app, port `2486`
+- registers and edits projects (subjects/teachers/system)
+- syncs content repositories and checks `config.json` integrity
+- uses the shared Convex backend for state
+- moderation and AI (usage / keys / services / prompts) sections are planned
+
+```bash
+pnpm --filter admin dev
+pnpm --filter admin build
+pnpm --filter admin lint
+```
 
 ## Backend
 
@@ -155,6 +172,7 @@ Run one app:
 pnpm --filter portal dev
 pnpm --filter studio dev
 pnpm --filter chat dev
+pnpm --filter admin dev
 ```
 
 Ports:
@@ -164,6 +182,7 @@ Ports:
 | Portal | `http://localhost:2288` |
 | Studio | `http://localhost:1986` |
 | Chat | `http://localhost:1488` |
+| Admin | `http://localhost:2486` |
 
 ## Root Commands
 
@@ -179,7 +198,7 @@ pnpm convex:dev
 
 | Var | Used by | Notes |
 | --- | --- | --- |
-| `NEXT_PUBLIC_CONVEX_URL` | Studio, Chat | Convex deployment URL |
+| `NEXT_PUBLIC_CONVEX_URL` | Studio, Chat, Admin | Convex deployment URL |
 | `OPENROUTER_API_KEY` | Convex | Set with `npx convex env set` |
 
 Common local env files:

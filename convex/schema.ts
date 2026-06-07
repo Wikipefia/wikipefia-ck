@@ -46,6 +46,25 @@ export default defineSchema({
     .index("by_type", ["type"])
     .index("by_github_repo", ["githubRepo"]),
 
+  /**
+   * Admin-managed key/value settings. Single source of truth for runtime
+   * config the admin app edits without a redeploy:
+   *   - service flags ("service:chat" → { enabled: boolean })
+   *   - prompt overrides ("prompt:tutor.base" → { text: string })
+   *   - API key metadata ("apikey:openrouter" → { label, lastFour, setAt })
+   *
+   * `key` is a namespaced string ("<domain>:<name>"). `value` is intentionally
+   * `v.any()` so the shape can evolve per-domain without schema churn. The
+   * chat agent reads these with a fallback to env/code defaults. The AI admin
+   * section (next iteration) is the primary writer; the table is defined now
+   * so the direction is fixed.
+   */
+  settings: defineTable({
+    key: v.string(),
+    value: v.any(),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
+
   // Chat: per-thread metadata layered on top of @convex-dev/agent's threads
   threadMeta: defineTable({
     /** Foreign reference to the agent component's thread id (a string). */
