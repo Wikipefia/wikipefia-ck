@@ -25,6 +25,13 @@ export const getBySlug = query({
   },
 });
 
+export const getById = query({
+  args: { id: v.id("projects") },
+  handler: async (ctx, { id }) => {
+    return await ctx.db.get(id);
+  },
+});
+
 // ── Public mutations ──
 
 export const create = mutation({
@@ -47,6 +54,46 @@ export const create = mutation({
       .first();
     if (existing) throw new Error(`Project "${args.slug}" already exists`);
     return await ctx.db.insert("projects", args);
+  },
+});
+
+export const update = mutation({
+  args: {
+    id: v.id("projects"),
+    name: v.optional(v.string()),
+    description: v.optional(v.string()),
+    githubRepo: v.optional(v.string()),
+    branch: v.optional(v.string()),
+    type: v.optional(
+      v.union(
+        v.literal("subject"),
+        v.literal("teacher"),
+        v.literal("system"),
+      ),
+    ),
+  },
+  handler: async (ctx, { id, name, description, githubRepo, branch, type }) => {
+    const existing = await ctx.db.get(id);
+    if (!existing) throw new Error("Project not found");
+    // Only patch the fields that were provided. Spreading `undefined`
+    // checks keeps required fields from being dropped (patching a field to
+    // `undefined` would delete it).
+    await ctx.db.patch(id, {
+      ...(name !== undefined && { name }),
+      ...(description !== undefined && { description }),
+      ...(githubRepo !== undefined && { githubRepo }),
+      ...(branch !== undefined && { branch }),
+      ...(type !== undefined && { type }),
+    });
+  },
+});
+
+export const remove = mutation({
+  args: { id: v.id("projects") },
+  handler: async (ctx, { id }) => {
+    const existing = await ctx.db.get(id);
+    if (!existing) throw new Error("Project not found");
+    await ctx.db.delete(id);
   },
 });
 
