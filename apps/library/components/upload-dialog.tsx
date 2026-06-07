@@ -2,22 +2,45 @@
 
 import { api } from "@wikipefia/convex/api";
 import { useQuery } from "convex/react";
-import { type FormEvent, useState } from "react";
-import { DOCUMENT_TYPES, type DocumentType } from "@/lib/metadata";
-import { useUploadThing } from "@/lib/uploadthing";
+import { AnimatePresence, motion } from "motion/react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
+import {
+  Btn,
+  Field,
+  inputCls,
+  inputStyle,
+  MonoLabel,
+  ProgressButton,
+} from "@/components/ui";
+import { DOCUMENT_TYPES, type DocumentType, formatBytes } from "@/lib/metadata";
+import { C, FONT } from "@/lib/theme";
+import { useLibraryUpload } from "@/lib/use-library-upload";
 
 /**
- * Modal form to upload a file with rich metadata. The file goes to UploadThing
- * with the metadata as `input`; the server-side `onUploadComplete` callback
- * ingests it into Convex Storage. The new file appears in the list reactively
- * (Convex subscription) — no manual refresh needed.
+ * Upload modal optimized for minimum friction: drop a file → press Upload.
+ * Subject is pre-filled (or locked when opened from a subject page), the title
+ * is derived from the filename, and every other field defaults server-side.
+ * Rich metadata lives behind an optional, collapsed "Add details" disclosure.
+ *
+ * The whole modal is a drop target, so the file can be dropped anywhere.
  */
-export function UploadDialog({ onClose }: { onClose: () => void }) {
+export function UploadDialog({
+  onClose,
+  lockedSubjectId,
+}: {
+  onClose: () => void;
+  /** When set, the subject is fixed (opened from that subject's page). */
+  lockedSubjectId?: string;
+}) {
   const subjects = useQuery(api.library.subjects.list);
 
   const [file, setFile] = useState<File | null>(null);
-  const [subjectId, setSubjectId] = useState("");
+  const [dragOver, setDragOver] = useState(false);
+  const [subjectId, setSubjectId] = useState(lockedSubjectId ?? "");
   const [title, setTitle] = useState("");
+  const [titleTouched, setTitleTouched] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+
   const [description, setDescription] = useState("");
   const [documentType, setDocumentType] = useState<DocumentType>("other");
   const [language, setLanguage] = useState("");
@@ -29,22 +52,31 @@ export function UploadDialog({ onClose }: { onClose: () => void }) {
   const [customFields, setCustomFields] = useState<
     { id: string; key: string; value: string }[]
   >([]);
-  const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  const { startUpload, isUploading } = useUploadThing("libraryUploader", {
-    onClientUploadComplete: () => {
-      onClose();
-    },
-    onUploadError: (e) => {
-      setError(e.message);
-    },
-  });
+  const dragDepth = useRef(0);
+  const upload = useLibraryUpload(onClose);
+  const uploading =
+    upload.status === "uploading" || upload.status === "finalizing";
+
+  // Pre-select the first subject once the list loads (unless locked).
+  useEffect(() => {
+    if (!lockedSubjectId && !subjectId && subjects && subjects.length > 0) {
+      setSubjectId(subjects[0]._id);
+    }
+  }, [subjects, subjectId, lockedSubjectId]);
+
+  function acceptFile(f: File) {
+    setFile(f);
+    setFormError(null);
+    if (!titleTouched) setTitle(f.name.replace(/\.[^.]+$/, ""));
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setError(null);
-    if (!file) return setError("Choose a file to upload.");
-    if (!subjectId) return setError("Pick a subject.");
+    setFormError(null);
+    if (!file) return setFormError("Drop a file to upload.");
+    if (!subjectId) return setFormError("Pick a subject.");
 
     const tags = tagsInput
       .split(",")
@@ -57,7 +89,7 @@ export function UploadDialog({ onClose }: { onClose: () => void }) {
       if (k) customFieldsObj[k] = value;
     }
 
-    await startUpload([file], {
+    await upload.start(file, {
       subjectId,
       title: title.trim() || undefined,
       description: description.trim() || undefined,
@@ -74,229 +106,414 @@ export function UploadDialog({ onClose }: { onClose: () => void }) {
     });
   }
 
+  const noSubjects = subjects !== undefined && subjects.length === 0;
+  const lockedSubject = lockedSubjectId
+    ? subjects?.find((s) => s._id === lockedSubjectId)
+    : undefined;
+  const shownError = formError ?? upload.error;
+
+  const submitLabel =
+    upload.status === "uploading"
+      ? `Uploading… ${upload.progress.toFixed(1)}%`
+      : upload.status === "finalizing"
+        ? "Finalizing…"
+        : upload.status === "error"
+          ? "Try again"
+          : "Upload";
+
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4">
-      <form
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:p-8"
+      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+      onClick={onClose}
+    >
+      <motion.form
+        initial={{ opacity: 0, y: -10, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -10, scale: 0.98 }}
+        transition={{ duration: 0.14 }}
+        onClick={(e) => e.stopPropagation()}
         onSubmit={handleSubmit}
-        className="my-8 w-full max-w-xl rounded-lg border border-[var(--c-border)] bg-[var(--c-bg-white)] p-6 shadow-xl"
+        onDragEnter={(e) => {
+          e.preventDefault();
+          dragDepth.current += 1;
+          setDragOver(true);
+        }}
+        onDragOver={(e) => e.preventDefault()}
+        onDragLeave={() => {
+          dragDepth.current = Math.max(0, dragDepth.current - 1);
+          if (dragDepth.current === 0) setDragOver(false);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          dragDepth.current = 0;
+          setDragOver(false);
+          const f = e.dataTransfer.files?.[0];
+          if (f) acceptFile(f);
+        }}
+        className="relative w-full max-w-lg border shadow-2xl transition-colors"
+        style={{
+          backgroundColor: C.bgWhite,
+          borderColor: dragOver ? C.accent : C.border,
+        }}
       >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Upload a file</h2>
+        {/* Header */}
+        <div
+          className="flex items-center justify-between border-b px-5 py-3"
+          style={{ borderColor: C.borderLight }}
+        >
+          <MonoLabel>
+            {lockedSubject ? `Upload → ${lockedSubject.name}` : "Upload file"}
+          </MonoLabel>
           <button
             type="button"
             onClick={onClose}
-            className="text-[var(--c-text-muted)] hover:text-[var(--c-text)]"
+            className="text-[var(--c-text-muted)] transition-colors hover:text-[var(--c-text)]"
           >
             ✕
           </button>
         </div>
 
-        <div className="space-y-3">
-          <Field label="File *">
+        <div className="max-h-[72vh] space-y-4 overflow-y-auto px-5 py-5">
+          {/* Hero dropzone — switches to a clear "attached" state once a file
+              is chosen (solid accent border + tint + checkmark). */}
+          <label
+            className={`flex cursor-pointer flex-col items-center justify-center gap-2 border px-4 py-9 text-center transition-colors ${
+              file ? "" : "border-dashed"
+            }`}
+            style={{
+              borderColor: file || dragOver ? C.accent : C.border,
+              backgroundColor: file
+                ? "color-mix(in srgb, var(--c-accent) 9%, transparent)"
+                : "transparent",
+            }}
+          >
             <input
               type="file"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className="w-full text-sm"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) acceptFile(f);
+              }}
             />
-          </Field>
+            {file ? (
+              <>
+                <span
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-[18px] leading-none text-white"
+                  style={{ backgroundColor: C.accent }}
+                >
+                  ✓
+                </span>
+                <span
+                  className="text-[9px] font-bold uppercase tracking-[0.22em]"
+                  style={{ fontFamily: FONT.mono, color: C.accent }}
+                >
+                  File attached
+                </span>
+                <span
+                  className="max-w-full truncate text-[14px] font-medium text-[var(--c-text)]"
+                  style={{ fontFamily: FONT.mono }}
+                >
+                  {file.name}
+                </span>
+                <span
+                  className="text-[10px] uppercase tracking-[0.15em] text-[var(--c-text-muted)]"
+                  style={{ fontFamily: FONT.mono }}
+                >
+                  {formatBytes(file.size)} · click to replace
+                </span>
+              </>
+            ) : (
+              <>
+                <span
+                  className="text-2xl leading-none"
+                  style={{ color: dragOver ? C.accent : C.textMuted }}
+                >
+                  ⤓
+                </span>
+                <span
+                  className="text-[14px] text-[var(--c-text)]"
+                  style={{ fontFamily: FONT.mono }}
+                >
+                  {dragOver
+                    ? "Drop to attach"
+                    : "Drop a file or click to browse"}
+                </span>
+                <span
+                  className="text-[10px] uppercase tracking-[0.15em] text-[var(--c-text-muted)]"
+                  style={{ fontFamily: FONT.mono }}
+                >
+                  Any type · up to 256 MB
+                </span>
+              </>
+            )}
+          </label>
 
-          <Field label="Subject *">
-            <select
-              value={subjectId}
-              onChange={(e) => setSubjectId(e.target.value)}
-              className={selectClass}
-            >
-              <option value="">Select a subject…</option>
-              {subjects?.map((s) => (
-                <option key={s._id} value={s._id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          <Field label="Title">
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Defaults to the filename"
-              className={inputClass}
-            />
-          </Field>
-
-          <Field label="Description">
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-              className={inputClass}
-            />
-          </Field>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Document type">
-              <select
-                value={documentType}
-                onChange={(e) =>
-                  setDocumentType(e.target.value as DocumentType)
-                }
-                className={selectClass}
+          {/* Subject — fixed when locked, otherwise a pre-filled select. */}
+          {lockedSubject ? (
+            <div className="space-y-1.5">
+              <MonoLabel>Subject</MonoLabel>
+              <p
+                className="text-[14px] text-[var(--c-text)]"
+                style={{ fontFamily: FONT.serif }}
               >
-                {DOCUMENT_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
+                {lockedSubject.name}
+              </p>
+            </div>
+          ) : (
+            <Field label="Subject">
+              <select
+                value={subjectId}
+                onChange={(e) => setSubjectId(e.target.value)}
+                disabled={noSubjects}
+                className={`${inputCls} cursor-pointer`}
+                style={inputStyle}
+              >
+                {subjects === undefined && <option value="">Loading…</option>}
+                {noSubjects && <option value="">No subjects available</option>}
+                {subjects?.map((s) => (
+                  <option key={s._id} value={s._id}>
+                    {s.name}
                   </option>
                 ))}
               </select>
             </Field>
-            <Field label="Language">
-              <input
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                placeholder="en, ru, …"
-                className={inputClass}
-              />
-            </Field>
-            <Field label="Year">
-              <input
-                type="number"
-                value={year}
-                onChange={(e) => setYear(e.target.value)}
-                className={inputClass}
-              />
-            </Field>
-            <Field label="Page count">
-              <input
-                type="number"
-                value={pageCount}
-                onChange={(e) => setPageCount(e.target.value)}
-                className={inputClass}
-              />
-            </Field>
-            <Field label="Author (source)">
-              <input
-                value={authorName}
-                onChange={(e) => setAuthorName(e.target.value)}
-                className={inputClass}
-              />
-            </Field>
-            <Field label="Source URL">
-              <input
-                value={sourceUrl}
-                onChange={(e) => setSourceUrl(e.target.value)}
-                className={inputClass}
-              />
-            </Field>
-          </div>
+          )}
 
-          <Field label="Tags (comma-separated)">
-            <input
-              value={tagsInput}
-              onChange={(e) => setTagsInput(e.target.value)}
-              placeholder="calculus, midterm, 2024"
-              className={inputClass}
-            />
-          </Field>
+          <p
+            className="text-[11px] leading-relaxed text-[var(--c-text-muted)]"
+            style={{ fontFamily: FONT.mono }}
+          >
+            That’s all you need — title &amp; type are filled in automatically.
+            Everything else can be added later.
+          </p>
 
-          <div>
-            <div className="mb-1 flex items-center justify-between">
-              <span className="text-xs font-medium text-[var(--c-text-muted)]">
-                Custom fields
-              </span>
-              <button
-                type="button"
-                onClick={() =>
-                  setCustomFields((f) => [
-                    ...f,
-                    { id: crypto.randomUUID(), key: "", value: "" },
-                  ])
-                }
-                className="text-xs text-[var(--c-accent)] hover:underline"
+          {/* Optional details disclosure */}
+          <div className="border-t pt-3" style={{ borderColor: C.borderLight }}>
+            <button
+              type="button"
+              onClick={() => setShowDetails((s) => !s)}
+              className="flex w-full items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--c-text-muted)] transition-colors hover:text-[var(--c-accent)]"
+              style={{ fontFamily: FONT.mono }}
+            >
+              <span
+                className="inline-block transition-transform"
+                style={{ transform: showDetails ? "rotate(90deg)" : "none" }}
               >
-                + Add field
-              </button>
-            </div>
-            {customFields.map((cf) => (
-              <div key={cf.id} className="mb-2 flex gap-2">
-                <input
-                  value={cf.key}
-                  onChange={(e) =>
-                    setCustomFields((arr) =>
-                      arr.map((x) =>
-                        x.id === cf.id ? { ...x, key: e.target.value } : x,
-                      ),
-                    )
-                  }
-                  placeholder="key"
-                  className={inputClass}
-                />
-                <input
-                  value={cf.value}
-                  onChange={(e) =>
-                    setCustomFields((arr) =>
-                      arr.map((x) =>
-                        x.id === cf.id ? { ...x, value: e.target.value } : x,
-                      ),
-                    )
-                  }
-                  placeholder="value"
-                  className={inputClass}
-                />
-                <button
-                  type="button"
-                  onClick={() =>
-                    setCustomFields((arr) => arr.filter((x) => x.id !== cf.id))
-                  }
-                  className="px-2 text-[var(--c-text-muted)] hover:text-[var(--c-text)]"
+                ▸
+              </span>
+              {showDetails ? "Hide details" : "Add details (optional)"}
+            </button>
+
+            <AnimatePresence initial={false}>
+              {showDetails && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="overflow-hidden"
                 >
-                  ✕
-                </button>
-              </div>
-            ))}
+                  <div className="space-y-4 pt-4">
+                    <Field label="Title">
+                      <input
+                        value={title}
+                        onChange={(e) => {
+                          setTitle(e.target.value);
+                          setTitleTouched(true);
+                        }}
+                        placeholder="Defaults to the filename"
+                        className={inputCls}
+                        style={inputStyle}
+                      />
+                    </Field>
+
+                    <Field label="Description">
+                      <textarea
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        rows={2}
+                        className={inputCls}
+                        style={inputStyle}
+                      />
+                    </Field>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Type">
+                        <select
+                          value={documentType}
+                          onChange={(e) =>
+                            setDocumentType(e.target.value as DocumentType)
+                          }
+                          className={`${inputCls} cursor-pointer`}
+                          style={inputStyle}
+                        >
+                          {DOCUMENT_TYPES.map((t) => (
+                            <option key={t} value={t}>
+                              {t}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label="Language">
+                        <input
+                          value={language}
+                          onChange={(e) => setLanguage(e.target.value)}
+                          placeholder="en, ru, …"
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                      </Field>
+                      <Field label="Year">
+                        <input
+                          type="number"
+                          value={year}
+                          onChange={(e) => setYear(e.target.value)}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                      </Field>
+                      <Field label="Pages">
+                        <input
+                          type="number"
+                          value={pageCount}
+                          onChange={(e) => setPageCount(e.target.value)}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                      </Field>
+                      <Field label="Author (source)">
+                        <input
+                          value={authorName}
+                          onChange={(e) => setAuthorName(e.target.value)}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                      </Field>
+                      <Field label="Source URL">
+                        <input
+                          value={sourceUrl}
+                          onChange={(e) => setSourceUrl(e.target.value)}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                      </Field>
+                    </div>
+
+                    <Field label="Tags (comma-separated)">
+                      <input
+                        value={tagsInput}
+                        onChange={(e) => setTagsInput(e.target.value)}
+                        placeholder="calculus, midterm, 2024"
+                        className={inputCls}
+                        style={inputStyle}
+                      />
+                    </Field>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <MonoLabel>Custom fields</MonoLabel>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCustomFields((f) => [
+                              ...f,
+                              { id: crypto.randomUUID(), key: "", value: "" },
+                            ])
+                          }
+                          className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--c-accent)] transition-opacity hover:opacity-80"
+                          style={{ fontFamily: FONT.mono }}
+                        >
+                          + Add
+                        </button>
+                      </div>
+                      {customFields.map((cf) => (
+                        <div key={cf.id} className="flex gap-2">
+                          <input
+                            value={cf.key}
+                            onChange={(e) =>
+                              setCustomFields((arr) =>
+                                arr.map((x) =>
+                                  x.id === cf.id
+                                    ? { ...x, key: e.target.value }
+                                    : x,
+                                ),
+                              )
+                            }
+                            placeholder="key"
+                            className={inputCls}
+                            style={inputStyle}
+                          />
+                          <input
+                            value={cf.value}
+                            onChange={(e) =>
+                              setCustomFields((arr) =>
+                                arr.map((x) =>
+                                  x.id === cf.id
+                                    ? { ...x, value: e.target.value }
+                                    : x,
+                                ),
+                              )
+                            }
+                            placeholder="value"
+                            className={inputCls}
+                            style={inputStyle}
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setCustomFields((arr) =>
+                                arr.filter((x) => x.id !== cf.id),
+                              )
+                            }
+                            className="shrink-0 px-2 text-[var(--c-text-muted)] transition-colors hover:text-[var(--c-text)]"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
+
+          {shownError && (
+            <p
+              className="text-[12px] text-red-500"
+              style={{ fontFamily: FONT.mono }}
+            >
+              {shownError}
+            </p>
+          )}
         </div>
 
-        {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
-
-        <div className="mt-5 flex justify-end gap-2">
-          <button
+        {/* Footer */}
+        <div
+          className="flex items-center justify-end gap-2 border-t px-5 py-3"
+          style={{ borderColor: C.borderLight }}
+        >
+          <Btn
             type="button"
+            variant="ghost"
             onClick={onClose}
-            className="rounded-md px-4 py-2 text-sm text-[var(--c-text-muted)] hover:text-[var(--c-text)]"
+            disabled={uploading}
           >
             Cancel
-          </button>
-          <button
+          </Btn>
+          <ProgressButton
             type="submit"
-            disabled={isUploading}
-            className="rounded-md bg-[var(--c-accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            progress={uploading ? upload.progress : 0}
+            disabled={uploading || !file || noSubjects}
           >
-            {isUploading ? "Uploading…" : "Upload"}
-          </button>
+            {submitLabel}
+          </ProgressButton>
         </div>
-      </form>
-    </div>
-  );
-}
-
-const inputClass =
-  "w-full rounded-md border border-[var(--c-border)] bg-[var(--c-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--c-accent)]";
-const selectClass = inputClass;
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    // biome-ignore lint/a11y/noLabelWithoutControl: control is nested via `children`.
-    <label className="block">
-      <span className="mb-1 block text-xs font-medium text-[var(--c-text-muted)]">
-        {label}
-      </span>
-      {children}
-    </label>
+      </motion.form>
+    </motion.div>
   );
 }

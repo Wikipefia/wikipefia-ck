@@ -5,6 +5,7 @@
   --color-foreground: var(--foreground);
 }
 
+/* ── Light theme (default) ── */
 :root {
   --background: #fafafa;
   --foreground: #111111;
@@ -16,8 +17,13 @@
   --c-accent: #2563eb;
   --c-border: #d4d4d4;
   --c-border-light: #e5e5e5;
+
+  /* Inverted surface — header bars, badges (dark in both modes) */
+  --c-header-bg: #1a1a1a;
+  --c-header-text: #fafafa;
 }
 
+/* ── Dark theme ── */
 .dark {
   --background: #0e0e0e;
   --foreground: #d4d4d4;
@@ -29,6 +35,9 @@
   --c-accent: #60a5fa;
   --c-border: #333333;
   --c-border-light: #252525;
+
+  --c-header-bg: #1e1e1e;
+  --c-header-text: #d4d4d4;
 
   color-scheme: dark;
 }
@@ -42,4 +51,32 @@ body {
   min-height: 100%;
   background: var(--background);
   color: var(--foreground);
+  font-family: var(--font-mono), ui-sans-serif, system-ui, sans-serif;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--c-accent) 22%, transparent);
+}
+
+/* Subtle film-grain overlay used behind the masthead. */
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.04;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 128px 128px;
+}
+
+@keyframes lib-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(180deg);
+  }
+}
+.spin-once {
+  animation: lib-spin 0.3s ease-out;
 }

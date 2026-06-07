@@ -4,6 +4,8 @@ import { api } from "@wikipefia/convex/api";
 import type { Id } from "@wikipefia/convex/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import { type FormEvent, useMemo, useState } from "react";
+import { inputCls, inputStyle } from "@/components/ui";
+import { FONT } from "@/lib/theme";
 import type { LibraryComment } from "@/lib/types";
 
 /** Threaded comments for a file. The reply tree is built client-side. */
@@ -12,7 +14,6 @@ export function Comments({ fileId }: { fileId: Id<"libraryFiles"> }) {
   const add = useMutation(api.library.comments.add);
   const [body, setBody] = useState("");
 
-  // Group children by parent id for tree assembly.
   const childrenByParent = useMemo(() => {
     const map = new Map<string, LibraryComment[]>();
     for (const c of comments ?? []) {
@@ -33,33 +34,52 @@ export function Comments({ fileId }: { fileId: Id<"libraryFiles"> }) {
   }
 
   const roots = childrenByParent.get("root") ?? [];
+  const total = comments?.filter((c) => c.deletedAt === undefined).length ?? 0;
 
   return (
-    <div>
-      <form onSubmit={handleAdd} className="mb-4">
+    <div className="space-y-5">
+      <form onSubmit={handleAdd} className="space-y-2">
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          rows={2}
+          rows={3}
           placeholder="Add a comment…"
-          className="w-full rounded-md border border-[var(--c-border)] bg-[var(--c-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--c-accent)]"
+          className={inputCls}
+          style={inputStyle}
         />
-        <div className="mt-1 flex justify-end">
+        <div className="flex items-center justify-between">
+          <span
+            className="text-[10px] uppercase tracking-[0.15em] text-[var(--c-text-muted)]"
+            style={{ fontFamily: FONT.mono }}
+          >
+            {total} {total === 1 ? "comment" : "comments"}
+          </span>
           <button
             type="submit"
-            className="rounded-md bg-[var(--c-accent)] px-3 py-1.5 text-sm font-medium text-white"
+            className="border border-[var(--c-accent)] bg-[var(--c-accent)] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white transition-opacity hover:opacity-90"
+            style={{ fontFamily: FONT.mono }}
           >
-            Comment
+            Post
           </button>
         </div>
       </form>
 
       {comments === undefined ? (
-        <p className="text-sm text-[var(--c-text-muted)]">Loading…</p>
+        <p
+          className="text-[12px] text-[var(--c-text-muted)]"
+          style={{ fontFamily: FONT.mono }}
+        >
+          Loading…
+        </p>
       ) : roots.length === 0 ? (
-        <p className="text-sm text-[var(--c-text-muted)]">No comments yet.</p>
+        <p
+          className="text-[12px] text-[var(--c-text-muted)]"
+          style={{ fontFamily: FONT.mono }}
+        >
+          No comments yet — start the thread.
+        </p>
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-4">
           {roots.map((c) => (
             <CommentNode
               key={c._id}
@@ -101,10 +121,13 @@ function CommentNode({
   }
 
   return (
-    <li className="border-l-2 border-[var(--c-border-light)] pl-3">
-      <div className="text-sm">
+    <li className="border-l-2 border-[var(--c-border-light)] pl-4">
+      <div className="text-[14px] leading-relaxed text-[var(--c-text)]">
         {deleted ? (
-          <span className="italic text-[var(--c-text-muted)]">
+          <span
+            className="text-[12px] italic text-[var(--c-text-muted)]"
+            style={{ fontFamily: FONT.mono }}
+          >
             [comment deleted]
           </span>
         ) : (
@@ -112,18 +135,21 @@ function CommentNode({
         )}
       </div>
       {!deleted && (
-        <div className="mt-1 flex gap-3 text-xs text-[var(--c-text-muted)]">
+        <div
+          className="mt-1.5 flex gap-4 text-[10px] uppercase tracking-[0.12em] text-[var(--c-text-muted)]"
+          style={{ fontFamily: FONT.mono }}
+        >
           <button
             type="button"
             onClick={() => setReplyOpen((o) => !o)}
-            className="hover:text-[var(--c-text)]"
+            className="transition-colors hover:text-[var(--c-accent)]"
           >
             Reply
           </button>
           <button
             type="button"
             onClick={() => remove({ commentId: comment._id })}
-            className="hover:text-[var(--c-text)]"
+            className="transition-colors hover:text-red-500"
           >
             Delete
           </button>
@@ -131,18 +157,20 @@ function CommentNode({
       )}
 
       {replyOpen && (
-        <form onSubmit={handleReply} className="mt-2">
+        <form onSubmit={handleReply} className="mt-3 space-y-2">
           <textarea
             value={replyBody}
             onChange={(e) => setReplyBody(e.target.value)}
             rows={2}
             placeholder="Reply…"
-            className="w-full rounded-md border border-[var(--c-border)] bg-[var(--c-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--c-accent)]"
+            className={inputCls}
+            style={inputStyle}
           />
-          <div className="mt-1 flex justify-end">
+          <div className="flex justify-end">
             <button
               type="submit"
-              className="rounded-md bg-[var(--c-accent)] px-3 py-1 text-xs font-medium text-white"
+              className="border border-[var(--c-accent)] bg-[var(--c-accent)] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white transition-opacity hover:opacity-90"
+              style={{ fontFamily: FONT.mono }}
             >
               Reply
             </button>
@@ -151,7 +179,7 @@ function CommentNode({
       )}
 
       {replies.length > 0 && (
-        <ul className="mt-3 space-y-3">
+        <ul className="mt-4 space-y-4">
           {replies.map((r) => (
             <CommentNode
               key={r._id}

@@ -297,4 +297,15 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_file", ["fileId"]),
+
+  /**
+   * Denormalized per-subject file count. Powers the subject cards on the home
+   * page without scanning the files table (follows the "denormalized counter"
+   * guideline). Maintained in `library/files.ts` create/remove. A subject only
+   * gets a row here once it has had at least one file.
+   */
+  librarySubjectStats: defineTable({
+    subjectId: v.id("projects"),
+    fileCount: v.number(),
+  }).index("by_subject", ["subjectId"]),
 });

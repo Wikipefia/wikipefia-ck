@@ -15,3 +15,8 @@ export type LibraryFileDetail = NonNullable<
 export type LibraryComment = FunctionReturnType<
   typeof api.library.comments.list
 >[number];
+
+/** A subject with its denormalized file count, from `subjects.listWithCounts`. */
+export type SubjectWithCount = FunctionReturnType<
+  typeof api.library.subjects.listWithCounts
+>[number];

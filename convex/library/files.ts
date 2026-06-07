@@ -4,6 +4,7 @@ import {
   query,
   mutation,
   internalMutation,
+  type MutationCtx,
   type QueryCtx,
 } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -38,6 +39,25 @@ async function tagsForFile(
     .withIndex("by_file", (q) => q.eq("fileId", fileId))
     .take(100);
   return rows.map((r) => r.tag);
+}
+
+/** Adjust the denormalized per-subject file counter by `delta` (±1). */
+async function bumpSubjectCount(
+  ctx: MutationCtx,
+  subjectId: Id<"projects">,
+  delta: number,
+) {
+  const stats = await ctx.db
+    .query("librarySubjectStats")
+    .withIndex("by_subject", (q) => q.eq("subjectId", subjectId))
+    .first();
+  if (stats) {
+    await ctx.db.patch(stats._id, {
+      fileCount: Math.max(0, stats.fileCount + delta),
+    });
+  } else if (delta > 0) {
+    await ctx.db.insert("librarySubjectStats", { subjectId, fileCount: delta });
+  }
 }
 
 /** Shape returned to the UI: the file doc + its tags + derived rating avg. */
@@ -89,6 +109,8 @@ export const create = internalMutation({
       seen.add(tag);
       await ctx.db.insert("libraryFileTags", { fileId, tag });
     }
+
+    await bumpSubjectCount(ctx, args.subjectId, 1);
 
     return fileId;
   },
@@ -240,6 +262,8 @@ export const remove = mutation({
       .withIndex("by_file", (q) => q.eq("fileId", fileId))
       .first();
     if (transcription) await ctx.db.delete(transcription._id);
+
+    await bumpSubjectCount(ctx, file.subjectId, -1);
 
     await ctx.db.delete(fileId);
     return { ok: true };

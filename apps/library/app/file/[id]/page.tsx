@@ -3,19 +3,23 @@
 import { api } from "@wikipefia/convex/api";
 import type { Id } from "@wikipefia/convex/dataModel";
 import { useMutation, useQuery } from "convex/react";
+import { motion } from "motion/react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { Comments } from "@/components/comments";
+import { Masthead } from "@/components/masthead";
 import { MetadataEditor } from "@/components/metadata-editor";
 import { RatingStars } from "@/components/rating-stars";
 import { TagEditor } from "@/components/tag-editor";
+import { Btn, SectionHeading, TypeBadge } from "@/components/ui";
 import {
-  DOCUMENT_TYPE_ICON,
-  type DocumentType,
+  documentTypeCode,
   formatBytes,
+  TRANSCRIPTION_COLOR,
   TRANSCRIPTION_LABEL,
 } from "@/lib/metadata";
+import { FONT } from "@/lib/theme";
 
 export default function FileDetailPage() {
   const params = useParams<{ id: string }>();
@@ -33,174 +37,259 @@ export default function FileDetailPage() {
 
   if (file === undefined) {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-8">
-        <p className="text-sm text-[var(--c-text-muted)]">Loading…</p>
-      </main>
+      <Shell>
+        <p
+          className="text-[12px] text-[var(--c-text-muted)]"
+          style={{ fontFamily: FONT.mono }}
+        >
+          Loading…
+        </p>
+      </Shell>
     );
   }
   if (file === null) {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-8">
-        <p className="text-sm">File not found.</p>
-        <Link href="/" className="text-sm text-[var(--c-accent)]">
+      <Shell>
+        <p
+          className="text-[15px] text-[var(--c-text)]"
+          style={{ fontFamily: FONT.serif }}
+        >
+          File not found.
+        </p>
+        <Link
+          href="/"
+          className="mt-2 inline-block text-[11px] uppercase tracking-[0.12em] text-[var(--c-accent)]"
+          style={{ fontFamily: FONT.mono }}
+        >
           ← Back to library
         </Link>
-      </main>
+      </Shell>
     );
   }
 
-  const icon = DOCUMENT_TYPE_ICON[file.documentType as DocumentType] ?? "📁";
   const canRequestTranscription =
     file.transcriptionStatus === "none" ||
     file.transcriptionStatus === "failed";
+
+  const subjectHref = `/subject/${file.subjectId}`;
 
   async function handleDelete() {
     if (!confirm("Delete this file permanently? This cannot be undone."))
       return;
     await remove({ fileId });
-    router.push("/");
+    // Return to the file's subject shelf, not the subject picker.
+    router.push(subjectHref);
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-8">
-      <Link href="/" className="text-sm text-[var(--c-accent)]">
-        ← Back to library
+    <Shell>
+      <Link
+        href={subjectHref}
+        className="inline-block text-[10px] uppercase tracking-[0.18em] text-[var(--c-text-muted)] transition-colors hover:text-[var(--c-accent)]"
+        style={{ fontFamily: FONT.mono }}
+      >
+        ← {file.subjectSlug}
       </Link>
 
-      <header className="mt-3 flex items-start gap-3">
-        <span className="text-3xl leading-none">{icon}</span>
-        <div className="min-w-0 flex-1">
-          <h1 className="font-serif text-2xl font-semibold">{file.title}</h1>
-          <p className="text-sm text-[var(--c-text-muted)]">
-            {file.subjectSlug} · {file.documentType} · {formatBytes(file.size)}
-          </p>
-        </div>
-      </header>
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        {downloadUrl && (
-          <a
-            href={downloadUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            download={file.originalName}
-            className="rounded-md bg-[var(--c-accent)] px-4 py-2 text-sm font-medium text-white"
-          >
-            Download
-          </a>
-        )}
-        <button
-          type="button"
-          onClick={() => setEditing((e) => !e)}
-          className="rounded-md border border-[var(--c-border)] px-4 py-2 text-sm"
-        >
-          {editing ? "Close editor" : "Edit metadata"}
-        </button>
-        <button
-          type="button"
-          onClick={handleDelete}
-          className="rounded-md border border-[var(--c-border)] px-4 py-2 text-sm text-red-500"
-        >
-          Delete
-        </button>
-      </div>
-
-      {editing ? (
-        <Section title="Edit metadata">
-          <MetadataEditor file={file} onDone={() => setEditing(false)} />
-        </Section>
-      ) : (
-        <Section title="Metadata">
-          <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 text-sm">
-            <Meta label="Original name" value={file.originalName} />
-            <Meta label="Description" value={file.description} />
-            <Meta label="Content type" value={file.contentType} />
-            <Meta label="Language" value={file.language} />
-            <Meta
-              label="Year"
-              value={file.year !== undefined ? String(file.year) : undefined}
-            />
-            <Meta label="Author (source)" value={file.authorName} />
-            <Meta label="Source URL" value={file.sourceUrl} />
-            <Meta
-              label="Page count"
-              value={
-                file.pageCount !== undefined
-                  ? String(file.pageCount)
-                  : undefined
-              }
-            />
-            {file.customFields &&
-              Object.entries(file.customFields).map(([k, v]) => (
-                <Meta key={k} label={k} value={v} />
-              ))}
-          </dl>
-        </Section>
-      )}
-
-      <Section title="Rating">
-        <RatingStars
-          fileId={file._id}
-          ratingAvg={file.ratingAvg}
-          ratingCount={file.ratingCount}
-        />
-      </Section>
-
-      <Section title="Tags">
-        <TagEditor fileId={file._id} tags={file.tags} />
-      </Section>
-
-      <Section title="Transcription">
-        <div className="flex items-center gap-3">
-          <span className="text-sm">
-            {TRANSCRIPTION_LABEL[file.transcriptionStatus]}
-          </span>
-          {canRequestTranscription && (
-            <button
-              type="button"
-              onClick={() => requestTranscription({ fileId })}
-              className="rounded-md border border-[var(--c-border)] px-3 py-1.5 text-sm"
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.18 }}
+      >
+        {/* Title block */}
+        <div className="mt-4 flex items-start gap-4">
+          <TypeBadge code={documentTypeCode(file.documentType)} />
+          <div className="min-w-0 flex-1">
+            <h1
+              className="text-[26px] font-semibold leading-tight text-[var(--c-text)]"
+              style={{ fontFamily: FONT.serif }}
             >
-              Request transcription
-            </button>
-          )}
+              {file.title}
+            </h1>
+            <p
+              className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-[var(--c-text-muted)]"
+              style={{ fontFamily: FONT.mono }}
+            >
+              <Link
+                href={subjectHref}
+                className="transition-colors hover:text-[var(--c-accent)]"
+              >
+                {file.subjectSlug}
+              </Link>
+              <span className="opacity-40">·</span>
+              <span>{file.documentType}</span>
+              <span className="opacity-40">·</span>
+              <span>{formatBytes(file.size)}</span>
+            </p>
+          </div>
         </div>
-        <p className="mt-1 text-xs text-[var(--c-text-muted)]">
-          The transcription service is not implemented yet — this only flips the
-          status to <code>pending</code>.
-        </p>
-      </Section>
 
-      <Section title="Comments">
-        <Comments fileId={file._id} />
-      </Section>
-    </main>
+        {/* Actions */}
+        <div className="mt-5 flex flex-wrap gap-2">
+          {downloadUrl && (
+            <a
+              href={downloadUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex cursor-pointer items-center justify-center gap-1.5 border border-[var(--c-accent)] bg-[var(--c-accent)] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white transition-opacity hover:opacity-90"
+              style={{ fontFamily: FONT.mono }}
+            >
+              ↓ Download
+            </a>
+          )}
+          <Btn variant="outline" onClick={() => setEditing((e) => !e)}>
+            {editing ? "Close editor" : "Edit metadata"}
+          </Btn>
+          <Btn variant="danger" onClick={handleDelete}>
+            Delete
+          </Btn>
+        </div>
+
+        {/* Two-column body on wide screens */}
+        <div className="mt-9 grid grid-cols-1 gap-9 lg:grid-cols-[1.4fr_1fr]">
+          <div className="space-y-9">
+            <section>
+              <SectionHeading>{editing ? "Edit" : "Metadata"}</SectionHeading>
+              {editing ? (
+                <MetadataEditor file={file} onDone={() => setEditing(false)} />
+              ) : (
+                <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2.5 text-[13px]">
+                  <Meta label="File" value={file.originalName} />
+                  <Meta label="Description" value={file.description} />
+                  <Meta label="Mime" value={file.contentType} />
+                  <Meta label="Language" value={file.language} />
+                  <Meta
+                    label="Year"
+                    value={
+                      file.year !== undefined ? String(file.year) : undefined
+                    }
+                  />
+                  <Meta label="Author" value={file.authorName} />
+                  <Meta label="Source" value={file.sourceUrl} link />
+                  <Meta
+                    label="Pages"
+                    value={
+                      file.pageCount !== undefined
+                        ? String(file.pageCount)
+                        : undefined
+                    }
+                  />
+                  {file.customFields &&
+                    Object.entries(file.customFields).map(([k, v]) => (
+                      <Meta key={k} label={k} value={v} />
+                    ))}
+                </dl>
+              )}
+            </section>
+
+            <section>
+              <SectionHeading>Comments</SectionHeading>
+              <Comments fileId={file._id} />
+            </section>
+          </div>
+
+          <div className="space-y-9">
+            <section>
+              <SectionHeading>Rating</SectionHeading>
+              <RatingStars
+                fileId={file._id}
+                ratingAvg={file.ratingAvg}
+                ratingCount={file.ratingCount}
+              />
+            </section>
+
+            <section>
+              <SectionHeading>Tags</SectionHeading>
+              <TagEditor fileId={file._id} tags={file.tags} />
+            </section>
+
+            <section>
+              <SectionHeading>Transcript</SectionHeading>
+              <div className="flex items-center gap-2">
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{
+                    backgroundColor:
+                      TRANSCRIPTION_COLOR[file.transcriptionStatus],
+                  }}
+                />
+                <span
+                  className="text-[12px] uppercase tracking-[0.1em]"
+                  style={{
+                    fontFamily: FONT.mono,
+                    color: TRANSCRIPTION_COLOR[file.transcriptionStatus],
+                  }}
+                >
+                  {TRANSCRIPTION_LABEL[file.transcriptionStatus]}
+                </span>
+              </div>
+              {canRequestTranscription && (
+                <div className="mt-3">
+                  <Btn
+                    variant="outline"
+                    onClick={() => requestTranscription({ fileId })}
+                  >
+                    Request transcription
+                  </Btn>
+                </div>
+              )}
+              <p className="mt-3 text-[11px] leading-relaxed text-[var(--c-text-muted)]">
+                The transcription service isn’t live yet — requesting only flips
+                the status to{" "}
+                <span className="text-[var(--c-text)]">pending</span> for the
+                future pipeline.
+              </p>
+            </section>
+          </div>
+        </div>
+      </motion.div>
+    </Shell>
   );
 }
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <section className="mt-6">
-      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--c-text-muted)]">
-        {title}
-      </h2>
-      {children}
-    </section>
+    <div className="flex min-h-screen flex-col">
+      <Masthead />
+      <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8">
+        {children}
+      </main>
+    </div>
   );
 }
 
-function Meta({ label, value }: { label: string; value?: string }) {
+function Meta({
+  label,
+  value,
+  link = false,
+}: {
+  label: string;
+  value?: string;
+  link?: boolean;
+}) {
   if (!value) return null;
   return (
     <>
-      <dt className="text-[var(--c-text-muted)]">{label}</dt>
-      <dd className="break-words">{value}</dd>
+      <dt
+        className="text-[10px] uppercase tracking-[0.12em] text-[var(--c-text-muted)]"
+        style={{ fontFamily: FONT.mono }}
+      >
+        {label}
+      </dt>
+      <dd className="break-words text-[var(--c-text)]">
+        {link ? (
+          <a
+            href={value}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[var(--c-accent)] underline-offset-2 hover:underline"
+          >
+            {value}
+          </a>
+        ) : (
+          value
+        )}
+      </dd>
     </>
   );
 }

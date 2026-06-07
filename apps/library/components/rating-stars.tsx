@@ -4,11 +4,11 @@ import { api } from "@wikipefia/convex/api";
 import type { Id } from "@wikipefia/convex/dataModel";
 import { useMutation } from "convex/react";
 import { useState } from "react";
+import { FONT } from "@/lib/theme";
 
 /**
  * Interactive 1–5 star rating. Shows the current average; clicking a star
- * appends a new rating event (no per-user dedup in v1). The average updates
- * reactively via the file subscription.
+ * appends a rating event (no per-user dedup in v1). Updates reactively.
  */
 export function RatingStars({
   fileId,
@@ -23,10 +23,9 @@ export function RatingStars({
   const [hover, setHover] = useState(0);
 
   return (
-    <div className="flex items-center gap-2">
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: hover reset is
-          presentational only; the interactive controls are the nested buttons. */}
-      <div className="flex" onMouseLeave={() => setHover(0)}>
+    <div className="flex items-center gap-3">
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: hover reset is presentational; controls are the nested buttons. */}
+      <div className="flex items-center" onMouseLeave={() => setHover(0)}>
         {[1, 2, 3, 4, 5].map((star) => {
           const filled = hover ? star <= hover : star <= Math.round(ratingAvg);
           return (
@@ -35,24 +34,23 @@ export function RatingStars({
               type="button"
               onMouseEnter={() => setHover(star)}
               onClick={() => rate({ fileId, value: star })}
-              className="px-0.5 text-xl leading-none"
+              className="cursor-pointer px-0.5 text-2xl leading-none transition-transform hover:scale-110"
               aria-label={`Rate ${star} star${star > 1 ? "s" : ""}`}
             >
-              <span
-                className={
-                  filled ? "text-yellow-400" : "text-[var(--c-border)]"
-                }
-              >
+              <span style={{ color: filled ? "#f59e0b" : "var(--c-border)" }}>
                 ★
               </span>
             </button>
           );
         })}
       </div>
-      <span className="text-sm text-[var(--c-text-muted)]">
+      <span
+        className="text-[11px] uppercase tracking-[0.12em] text-[var(--c-text-muted)]"
+        style={{ fontFamily: FONT.mono }}
+      >
         {ratingAvg > 0 ? ratingAvg.toFixed(1) : "—"}
         {ratingCount > 0 &&
-          ` · ${ratingCount} rating${ratingCount > 1 ? "s" : ""}`}
+          ` · ${ratingCount} vote${ratingCount > 1 ? "s" : ""}`}
       </span>
     </div>
   );

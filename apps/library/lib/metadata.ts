@@ -12,24 +12,37 @@ export const DOCUMENT_TYPES = [
 
 export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
-/** Emoji icon per document type — used on file cards. */
-export const DOCUMENT_TYPE_ICON: Record<DocumentType, string> = {
-  lecture: "🎓",
-  textbook: "📚",
-  exam: "📝",
-  notes: "🗒️",
-  article: "📄",
-  presentation: "📊",
-  other: "📁",
+/** Short mono code shown in the bordered type badge on cards/detail. */
+export const DOCUMENT_TYPE_CODE: Record<DocumentType, string> = {
+  lecture: "LEC",
+  textbook: "TXT",
+  exam: "EXM",
+  notes: "NTS",
+  article: "ART",
+  presentation: "PRE",
+  other: "DOC",
 };
 
-/** Human-readable label for a transcription status. */
+export function documentTypeCode(type: string): string {
+  return DOCUMENT_TYPE_CODE[type as DocumentType] ?? "DOC";
+}
+
+/** Human-readable label per transcription status. */
 export const TRANSCRIPTION_LABEL: Record<string, string> = {
-  none: "No transcription",
-  pending: "Transcription pending",
-  processing: "Transcribing…",
+  none: "No transcript",
+  pending: "Queued",
+  processing: "Transcribing",
   completed: "Transcribed",
-  failed: "Transcription failed",
+  failed: "Failed",
+};
+
+/** Accent color per transcription status (CSS color string). */
+export const TRANSCRIPTION_COLOR: Record<string, string> = {
+  none: "var(--c-text-muted)",
+  pending: "#d97706",
+  processing: "#2563eb",
+  completed: "#16a34a",
+  failed: "#dc2626",
 };
 
 export function formatBytes(bytes: number): string {
