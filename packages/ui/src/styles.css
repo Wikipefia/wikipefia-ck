@@ -1,0 +1,95 @@
+/**
+ * @wikipefia/ui — shared design system stylesheet.
+ *
+ * Single source of truth for the Wikipefia color palette (light + dark),
+ * the Tailwind v4 color-utility mapping that powers the CVA-based components,
+ * and a couple of shared base utilities.
+ *
+ * Consume from an app's globals.css *after* `@import "tailwindcss"`:
+ *
+ *   @import "tailwindcss";
+ *   @import "@wikipefia/ui/styles.css";
+ *   @source "../../../packages/ui/src";
+ */
+
+/* ── Palette: Light (default) ── */
+:root {
+  --c-bg: #f5f5f4;
+  --c-bg-white: #ffffff;
+  --c-text: #1a1a1a;
+  --c-text-muted: #6b6b6b;
+  --c-accent: #2563eb;
+  --c-border: #d4d4d4;
+  --c-border-light: #e5e5e5;
+
+  /* Inverted surface — dark bg + light text in both modes */
+  --c-header-bg: #1a1a1a;
+  --c-header-text: #fafafa;
+
+  /* Semantic */
+  --c-danger: #dc2626;
+  --c-success: #059669;
+  --c-warning: #d97706;
+}
+
+/* ── Palette: Dark ── */
+.dark {
+  --c-bg: #141414;
+  --c-bg-white: #1a1a1a;
+  --c-text: #d4d4d4;
+  --c-text-muted: #777777;
+  --c-accent: #60a5fa;
+  --c-border: #333333;
+  --c-border-light: #252525;
+
+  --c-header-bg: #1e1e1e;
+  --c-header-text: #d4d4d4;
+
+  --c-danger: #f87171;
+  --c-success: #34d399;
+  --c-warning: #fbbf24;
+}
+
+/**
+ * Tailwind color tokens. These expose the palette as Tailwind utilities
+ * (`bg-surface`, `text-fg`, `border-line`, `text-accent`, …) so the shared
+ * components can drive their variants through class-variance-authority.
+ */
+@theme inline {
+  --color-bg: var(--c-bg);
+  --color-surface: var(--c-bg-white);
+  --color-fg: var(--c-text);
+  --color-muted: var(--c-text-muted);
+  --color-accent: var(--c-accent);
+  --color-line: var(--c-border);
+  --color-line-soft: var(--c-border-light);
+  --color-invert: var(--c-header-bg);
+  --color-invert-fg: var(--c-header-text);
+  --color-danger: var(--c-danger);
+  --color-success: var(--c-success);
+  --color-warning: var(--c-warning);
+}
+
+/* ── Shared base utilities ── */
+@keyframes theme-toggle-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(180deg);
+  }
+}
+
+.theme-toggle-icon {
+  animation: theme-toggle-spin 0.3s ease-out;
+}
+
+.noise-overlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.03;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-size: 128px 128px;
+}

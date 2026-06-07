@@ -23,6 +23,7 @@
     "@wikipefia/mdx-compiler": "workspace:*",
     "@wikipefia/convex": "workspace:*",
     "@wikipefia/mdx-renderer": "workspace:*",
+    "@wikipefia/ui": "workspace:*",
     "convex": "^1.39.1",
     "codemirror": "^6",
     "katex": "^0.16.28",

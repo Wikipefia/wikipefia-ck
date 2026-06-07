@@ -1,6 +1,6 @@
 "use client";
 
-import { C } from "@/lib/theme";
+import { Button, cn } from "@wikipefia/ui";
 
 const LOCALE_LABELS: Record<string, string> = {
   ru: "RU",
@@ -14,23 +14,27 @@ export function LocaleSwitcher({ currentLocale }: { currentLocale: string }) {
     window.location.reload();
   }
 
+  const entries = Object.entries(LOCALE_LABELS);
+
   return (
-    <div className="flex border h-[34px]" style={{ borderColor: C.borderLight }}>
-      {Object.entries(LOCALE_LABELS).map(([locale, label], i, arr) => (
-        <button
-          key={locale}
-          onClick={() => switchLocale(locale)}
-          className="px-2.5 text-[11px] font-bold cursor-pointer transition-colors flex items-center"
-          style={{
-            backgroundColor: locale === currentLocale ? C.headerBg : "transparent",
-            color: locale === currentLocale ? C.headerText : C.textMuted,
-            borderRight:
-              i < arr.length - 1 ? `1px solid ${C.borderLight}` : "none",
-          }}
-        >
-          {label}
-        </button>
-      ))}
+    <div className="flex h-[34px] border border-line-soft">
+      {entries.map(([locale, label], i) => {
+        const active = locale === currentLocale;
+        return (
+          <Button
+            key={locale}
+            onClick={() => switchLocale(locale)}
+            variant={active ? "primary" : "ghost"}
+            className={cn(
+              "h-full border-0 px-2.5 tracking-normal",
+              !active && "text-muted",
+              i < entries.length - 1 && "border-r border-line-soft",
+            )}
+          >
+            {label}
+          </Button>
+        );
+      })}
     </div>
   );
 }

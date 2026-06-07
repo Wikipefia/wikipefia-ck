@@ -3,10 +3,10 @@
 import { useState, useEffect, Fragment } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { ThemeToggle, Button, Kbd, useTheme } from "@wikipefia/ui";
 import { C } from "@/lib/theme";
 import { SearchDialog } from "@/components/search/search-dialog";
 import { LocaleSwitcher } from "@/components/navigation/locale-switcher";
-import { useTheme } from "@/components/shared/theme-provider";
 
 // ── Types ──────────────────────────────────────────────
 
@@ -21,40 +21,16 @@ interface PageShellProps {
   locale: string;
 }
 
-// ── Theme Toggle ──────────────────────────────────────
-
-function ThemeToggle() {
-  const { resolvedTheme, toggleTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  const t = useTranslations("common");
-
-  useEffect(() => setMounted(true), []);
-
-  if (!mounted) {
-    return (
-      <div
-        className="h-[34px] w-[34px] border flex items-center justify-center"
-        style={{ borderColor: C.borderLight }}
-      />
-    );
-  }
-
-  return (
-    <button
-      onClick={toggleTheme}
-      className="h-[34px] w-[34px] border flex items-center justify-center cursor-pointer transition-colors"
-      style={{ borderColor: C.borderLight, color: C.textMuted }}
-      title={resolvedTheme === "dark" ? t("switchToLight") : t("switchToDark")}
-      aria-label={resolvedTheme === "dark" ? t("switchToLight") : t("switchToDark")}
-    >
-      <span className="text-sm theme-toggle-icon" key={resolvedTheme}>
-        {resolvedTheme === "dark" ? "☀" : "●"}
-      </span>
-    </button>
-  );
-}
-
 // ── PageShell ──────────────────────────────────────────
+
+// Localized wrapper around the shared ThemeToggle so the portal keeps its
+// translated, theme-aware accessible label / tooltip.
+function LocalizedThemeToggle() {
+  const t = useTranslations("common");
+  const { resolvedTheme } = useTheme();
+  const label = resolvedTheme === "dark" ? t("switchToLight") : t("switchToDark");
+  return <ThemeToggle aria-label={label} title={label} />;
+}
 
 export function PageShell({ children, breadcrumbs, locale }: PageShellProps) {
   const [searchOpen, setSearchOpen] = useState(false);
@@ -94,22 +70,20 @@ export function PageShell({ children, breadcrumbs, locale }: PageShellProps) {
               WIKIPEFIA
             </Link>
             <div className="flex items-center gap-2">
-              <button
+              <Button
+                variant="outline"
                 onClick={() => setSearchOpen(true)}
-                className="flex items-center gap-2 px-4 py-1.5 border cursor-pointer transition-colors group"
+                className="group gap-2 tracking-normal"
                 style={{ borderColor: C.borderLight }}
               >
                 <span className="text-xs uppercase font-medium group-hover:underline" style={{ color: C.textMuted }}>
                   {t("search")}
                 </span>
-                <span
-                  className="text-[10px] border px-1 py-px"
-                  style={{ borderColor: C.borderLight, color: C.textMuted }}
-                >
+                <Kbd style={{ borderColor: C.borderLight, color: C.textMuted }}>
                   ⌘K
-                </span>
-              </button>
-              <ThemeToggle />
+                </Kbd>
+              </Button>
+              <LocalizedThemeToggle />
               <LocaleSwitcher currentLocale={locale} />
             </div>
           </div>

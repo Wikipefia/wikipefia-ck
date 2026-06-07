@@ -9,6 +9,7 @@ import {
 } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { C } from "@wikipefia/mdx-renderer/theme";
+import { Button, Textarea } from "@wikipefia/ui";
 import {
   useQuestionBoxPairs,
   useAskQuestionBox,
@@ -235,7 +236,7 @@ export function QuestionBox({
               transition={{ duration: 0.14 }}
               className="flex flex-col gap-2"
             >
-              <textarea
+              <Textarea
                 ref={textareaRef}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
@@ -243,7 +244,7 @@ export function QuestionBox({
                 rows={Math.min(8, Math.max(2, text.split("\n").length))}
                 placeholder={`Ask a follow-up about: ${topic}`}
                 disabled={submitting || isStreaming}
-                className="w-full border px-3 py-2 text-[14px] resize-y outline-none disabled:opacity-50"
+                className="px-3 py-2 text-[14px] resize-y"
                 style={{
                   fontFamily: "var(--font-serif)",
                   borderColor: C.border,
@@ -262,38 +263,34 @@ export function QuestionBox({
                   ⌘+Enter to send · Esc to cancel
                 </span>
                 <div className="flex items-center gap-2">
-                  <button
+                  <Button
                     type="button"
+                    size="sm"
+                    variant="ghost"
                     onClick={() => {
                       setComposing(false);
                       setText("");
                     }}
                     disabled={submitting}
-                    className="border h-[28px] px-3 text-[10px] font-bold uppercase tracking-[0.1em] cursor-pointer disabled:opacity-40"
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      borderColor: "transparent",
-                      color: C.textMuted,
-                    }}
+                    style={{ color: C.textMuted }}
                   >
                     Cancel
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
                     onClick={submit}
                     disabled={
                       text.trim().length === 0 || submitting || isStreaming
                     }
-                    className="border-2 h-[30px] px-4 text-[10px] font-bold uppercase tracking-[0.1em] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="border-2 h-[30px] px-4 text-[10px]"
                     style={{
-                      fontFamily: "var(--font-mono)",
                       borderColor: C.accent,
                       backgroundColor: C.accent,
                       color: "#fff",
                     }}
                   >
                     {submitting ? "Sending…" : "Send →"}
-                  </button>
+                  </Button>
                 </div>
               </div>
             </motion.div>

@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { C } from "@wikipefia/mdx-renderer/theme";
+import { Button } from "@wikipefia/ui";
 import { useSubmitToolResponse } from "../../hooks/use-messages";
 import { InlineMarkdown } from "./inline-markdown";
 
@@ -230,13 +231,12 @@ export function InteractiveQuiz({
             >
               {Object.keys(picks).length}/{questions.length} answered
             </span>
-            <button
+            <Button
               type="button"
               onClick={handleSubmit}
               disabled={!allAnswered || submitting}
-              className="border-2 h-[36px] px-5 text-[11px] font-bold uppercase tracking-[0.1em] transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              className="border-2 h-[36px] px-5 text-[11px] transition-all"
               style={{
-                fontFamily: "var(--font-mono)",
                 borderColor: allAnswered ? C.accent : C.border,
                 backgroundColor: allAnswered ? C.accent : C.bgWhite,
                 color: allAnswered ? "#fff" : C.textMuted,
@@ -244,7 +244,7 @@ export function InteractiveQuiz({
               }}
             >
               {submitting ? "Submitting…" : "Submit answers →"}
-            </button>
+            </Button>
           </div>
         ) : null}
       </div>

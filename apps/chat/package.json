@@ -18,6 +18,7 @@
     "@wikipefia/chat": "workspace:*",
     "@wikipefia/convex": "workspace:*",
     "@wikipefia/mdx-renderer": "workspace:*",
+    "@wikipefia/ui": "workspace:*",
     "ai": "^6.0.35",
     "convex": "^1.39.1",
     "katex": "^0.16.28",

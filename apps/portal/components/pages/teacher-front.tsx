@@ -3,6 +3,7 @@
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { Badge } from "@wikipefia/ui";
 import { C, getSubjectTheme } from "@/lib/theme";
 import type { TeacherManifest } from "@/lib/content/types";
 import type { Locale } from "@/lib/i18n/config";
@@ -77,18 +78,18 @@ export function TeacherFront({ teacher, locale }: TeacherFrontProps) {
             transition={{ duration: 0.3 }}
           >
             <div className="flex flex-wrap items-center gap-2 mb-6">
-              <span
-                className="text-[11px] font-bold px-2 py-0.5 uppercase tracking-wider"
+              <Badge
+                className="border-0 text-[11px] px-2 py-0.5 tracking-wider"
                 style={{ backgroundColor: C.headerBg, color: C.headerText }}
               >
                 {t("teacher")}
-              </span>
-              <span
-                className="text-[11px] font-bold px-2 py-0.5 uppercase tracking-wider border"
+              </Badge>
+              <Badge
+                className="text-[11px] px-2 py-0.5 tracking-wider"
                 style={{ borderColor: C.borderLight, color: C.textMuted }}
               >
                 {t("reviewsCount", { count: config.ratings.count })}
-              </span>
+              </Badge>
             </div>
 
             <div className="flex items-start gap-6 mb-6">

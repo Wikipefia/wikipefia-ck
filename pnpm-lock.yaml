@@ -97,6 +97,9 @@ importers:
       '@wikipefia/mdx-renderer':
         specifier: workspace:*
         version: link:../../packages/mdx-renderer
+      '@wikipefia/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       ai:
         specifier: ^6.0.35
         version: 6.0.172(zod@3.25.76)
@@ -164,6 +167,9 @@ importers:
       '@wikipefia/mdx-renderer':
         specifier: workspace:*
         version: link:../../packages/mdx-renderer
+      '@wikipefia/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       expr-eval:
         specifier: ^2.0.2
         version: 2.0.2
@@ -276,6 +282,9 @@ importers:
       '@wikipefia/mdx-renderer':
         specifier: workspace:*
         version: link:../../packages/mdx-renderer
+      '@wikipefia/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       codemirror:
         specifier: ^6
         version: 6.0.2
@@ -362,6 +371,9 @@ importers:
       '@wikipefia/mdx-renderer':
         specifier: workspace:*
         version: link:../mdx-renderer
+      '@wikipefia/ui':
+        specifier: workspace:*
+        version: link:../ui
       ai:
         specifier: ^6.0.35
         version: 6.0.172(zod@3.25.76)
@@ -517,6 +529,37 @@ importers:
         version: 5.9.2
 
   packages/typescript-config: {}
+
+  packages/ui:
+    dependencies:
+      class-variance-authority:
+        specifier: ^0.7.1
+        version: 0.7.1
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      framer-motion:
+        specifier: ^12.33.0
+        version: 12.36.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      react:
+        specifier: '>=19'
+        version: 19.2.3
+      react-dom:
+        specifier: '>=19'
+        version: 19.2.3(react@19.2.3)
+      tailwind-merge:
+        specifier: ^3.3.1
+        version: 3.6.0
+    devDependencies:
+      '@types/react':
+        specifier: ^19
+        version: 19.2.2
+      '@types/react-dom':
+        specifier: ^19
+        version: 19.2.2(@types/react@19.2.2)
+      typescript:
+        specifier: ^5
+        version: 5.9.2
 
 packages:
 
@@ -2119,8 +2162,15 @@ packages:
   character-reference-invalid@2.0.1:
     resolution: {integrity: sha512-iBZ4F4wRbyORVsu0jPV7gXkOsGYjGHPmAyv+HiHG8gi5PtC9KI2j1+v8/tlibRvjoWX027ypmG/n0HtO5t7unw==}
 
+  class-variance-authority@0.7.1:
+    resolution: {integrity: sha512-Ka+9Trutv7G8M6WT6SeiRWz792K5qEqIGEGzXKhAE6xOWAY6pPH8U+9IY3oCMv6kqTmLsv7Xh/2w2RigkePMsg==}
+
   client-only@0.0.1:
     resolution: {integrity: sha512-IV3Ou0jSMzZrd3pZ48nLkT9DA7Ag1pnPzaiQhpW7c3RbcqqzvzzVu+L8gfqMp/8IM2MQtSiqaCxrrcfu8I8rMA==}
+
+  clsx@2.1.1:
+    resolution: {integrity: sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==}
+    engines: {node: '>=6'}
 
   codemirror@6.0.2:
     resolution: {integrity: sha512-VhydHotNW5w1UGK0Qj96BwSk/Zqbp9WbnyK2W/eVMv4QyF41INRGpjUhFJY7/uDNuudSc33a/PKr4iDqRduvHw==}
@@ -3747,6 +3797,9 @@ packages:
   supports-preserve-symlinks-flag@1.0.0:
     resolution: {integrity: sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==}
     engines: {node: '>= 0.4'}
+
+  tailwind-merge@3.6.0:
+    resolution: {integrity: sha512-uxL7qAVQriqRQPAyK3pj66VqskWqoZ37PW94jwOTwNfq/z9oyu1V+eqrZqtR2+fCiXdYOZe/Modt8GtvqNzu+w==}
 
   tailwindcss@4.2.1:
     resolution: {integrity: sha512-/tBrSQ36vCleJkAOsy9kbNTgaxvGbyOamC30PRePTQe/o1MFwEKHQk4Cn7BNGaPtjp+PuUrByJehM1hgxfq4sw==}
@@ -5577,7 +5630,13 @@ snapshots:
 
   character-reference-invalid@2.0.1: {}
 
+  class-variance-authority@0.7.1:
+    dependencies:
+      clsx: 2.1.1
+
   client-only@0.0.1: {}
+
+  clsx@2.1.1: {}
 
   codemirror@6.0.2:
     dependencies:
@@ -7895,6 +7954,8 @@ snapshots:
       has-flag: 4.0.0
 
   supports-preserve-symlinks-flag@1.0.0: {}
+
+  tailwind-merge@3.6.0: {}
 
   tailwindcss@4.2.1: {}
 
