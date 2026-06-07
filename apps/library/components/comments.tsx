@@ -29,8 +29,13 @@ export function Comments({ fileId }: { fileId: Id<"libraryFiles"> }) {
     e.preventDefault();
     const trimmed = body.trim();
     if (!trimmed) return;
-    setBody("");
-    await add({ fileId, body: trimmed });
+    // Keep the draft until the server confirms, so a failed post isn't lost.
+    try {
+      await add({ fileId, body: trimmed });
+      setBody("");
+    } catch {
+      // Leave the text in place for the user to retry.
+    }
   }
 
   const roots = childrenByParent.get("root") ?? [];
@@ -44,6 +49,7 @@ export function Comments({ fileId }: { fileId: Id<"libraryFiles"> }) {
           onChange={(e) => setBody(e.target.value)}
           rows={3}
           placeholder="Add a comment…"
+          aria-label="Add a comment"
         />
         <div className="flex items-center justify-between">
           <span
@@ -103,9 +109,14 @@ function CommentNode({
     e.preventDefault();
     const trimmed = replyBody.trim();
     if (!trimmed) return;
-    setReplyBody("");
-    setReplyOpen(false);
-    await add({ fileId, parentCommentId: comment._id, body: trimmed });
+    // Keep the draft + form open until the reply is confirmed.
+    try {
+      await add({ fileId, parentCommentId: comment._id, body: trimmed });
+      setReplyBody("");
+      setReplyOpen(false);
+    } catch {
+      // Leave the reply text for the user to retry.
+    }
   }
 
   return (
@@ -151,6 +162,7 @@ function CommentNode({
             onChange={(e) => setReplyBody(e.target.value)}
             rows={2}
             placeholder="Reply…"
+            aria-label="Reply to comment"
           />
           <div className="flex justify-end">
             <Button type="submit" variant="primary" size="sm">

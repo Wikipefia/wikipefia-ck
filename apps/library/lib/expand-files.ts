@@ -76,8 +76,13 @@ export async function expandFiles(input: File[]): Promise<File[]> {
       for (const [path, bytes] of Object.entries(entries)) {
         if (shouldSkipEntry(path, bytes.length)) continue;
         const base = path.split("/").pop() as string;
+        // `bytes` is already a fresh Uint8Array from fflate and the File/Blob
+        // constructor copies it, so no extra wrapper copy is needed. The cast
+        // narrows fflate's `ArrayBufferLike` buffer to the DOM `BlobPart` type.
         out.push(
-          new File([new Uint8Array(bytes)], base, { type: guessMime(base) }),
+          new File([bytes as Uint8Array<ArrayBuffer>], base, {
+            type: guessMime(base),
+          }),
         );
       }
     } catch {

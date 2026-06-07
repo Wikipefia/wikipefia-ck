@@ -198,6 +198,7 @@ export function UploadDialog({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close upload dialog"
             className="text-muted transition-colors hover:text-fg"
           >
             ✕
@@ -236,7 +237,7 @@ export function UploadDialog({
             ) : hasFiles ? (
               <>
                 <span
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-[16px] leading-none text-white"
+                  className="flex h-8 w-8 items-center justify-center text-[16px] leading-none text-white"
                   style={{ backgroundColor: C.accent }}
                 >
                   ✓

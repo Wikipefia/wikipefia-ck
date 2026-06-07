@@ -77,7 +77,17 @@ export const ourFileRouter = {
       );
 
       // The bytes now live in Convex Storage — drop the temporary UT copy.
-      await new UTApi().deleteFiles(file.key);
+      // Best-effort: the ingest already succeeded, so a failed cleanup must NOT
+      // make UploadThing report the upload as failed (v7 doesn't retry this
+      // callback). Worst case the temporary copy lingers and is GC'd later.
+      try {
+        await new UTApi().deleteFiles(file.key);
+      } catch (err) {
+        console.error(
+          "UploadThing cleanup failed (file already ingested):",
+          err,
+        );
+      }
 
       // Returned to the client's onClientUploadComplete callback.
       return { fileId };

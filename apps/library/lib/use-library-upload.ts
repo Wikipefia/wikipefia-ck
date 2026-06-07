@@ -65,7 +65,15 @@ export function useLibraryUpload(onDone?: () => void) {
       // A short label for the banner/button: a single name, or a count.
       setFileName(files.length === 1 ? files[0].name : `${files.length} files`);
       setStatus("uploading");
-      await startUpload(files, meta);
+      // Normalize rejections into the state machine so every call site behaves
+      // the same whether it awaits the result or fires and forgets — `onError`
+      // doesn't fire for a thrown `startUpload`, only for upload-time errors.
+      try {
+        await startUpload(files, meta);
+      } catch (e) {
+        setStatus("error");
+        setError(e instanceof Error ? e.message : "Upload failed");
+      }
     },
     [startUpload],
   );

@@ -70,9 +70,17 @@ export default function FileDetailPage() {
   async function handleDelete() {
     if (!confirm("Delete this file permanently? This cannot be undone."))
       return;
-    await remove({ fileId });
-    // Return to the file's subject shelf, not the subject picker.
-    router.push(subjectHref);
+    try {
+      await remove({ fileId });
+      // Return to the file's subject shelf, not the subject picker.
+      router.push(subjectHref);
+    } catch (err) {
+      alert(
+        err instanceof Error
+          ? `Couldn’t delete: ${err.message}`
+          : "Delete failed",
+      );
+    }
   }
 
   return (
@@ -207,7 +215,7 @@ export default function FileDetailPage() {
               <SectionHeading>Transcript</SectionHeading>
               <div className="flex items-center gap-2">
                 <span
-                  className="h-2 w-2 rounded-full"
+                  className="h-2 w-2"
                   style={{
                     backgroundColor:
                       TRANSCRIPTION_COLOR[file.transcriptionStatus],
@@ -228,7 +236,9 @@ export default function FileDetailPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => requestTranscription({ fileId })}
+                    onClick={() => {
+                      requestTranscription({ fileId }).catch(() => {});
+                    }}
                   >
                     Request transcription
                   </Button>

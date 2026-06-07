@@ -32,23 +32,34 @@ export function MetadataEditor({
     file.pageCount !== undefined ? String(file.pageCount) : "",
   );
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
-    await update({
-      fileId: file._id,
-      title: title.trim() || file.originalName,
-      description: description.trim() || undefined,
-      documentType,
-      language: language.trim() || undefined,
-      year: year ? Number(year) : undefined,
-      authorName: authorName.trim() || undefined,
-      sourceUrl: sourceUrl.trim() || undefined,
-      pageCount: pageCount ? Number(pageCount) : undefined,
-    });
-    setSaving(false);
-    onDone();
+    setSaveError(null);
+    try {
+      // Send raw values: empty text / empty number ⇒ the field is cleared
+      // server-side. `try/finally` guarantees the form never stays disabled.
+      await update({
+        fileId: file._id,
+        title: title.trim() || file.originalName,
+        description,
+        documentType,
+        language,
+        authorName,
+        sourceUrl,
+        year: year.trim() === "" ? null : Number(year),
+        pageCount: pageCount.trim() === "" ? null : Number(pageCount),
+      });
+      onDone();
+    } catch (err) {
+      setSaveError(
+        err instanceof Error ? err.message : "Couldn’t save changes",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -109,6 +120,7 @@ export function MetadataEditor({
           />
         </Field>
       </div>
+      {saveError && <p className="text-[12px] text-danger">{saveError}</p>}
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" size="sm" onClick={onDone}>
           Cancel

@@ -31,7 +31,7 @@ export function FileCard({ file }: { file: LibraryFile }) {
             }}
           >
             <span
-              className="h-1.5 w-1.5 rounded-full"
+              className="h-1.5 w-1.5"
               style={{
                 backgroundColor: TRANSCRIPTION_COLOR[file.transcriptionStatus],
               }}
@@ -42,7 +42,7 @@ export function FileCard({ file }: { file: LibraryFile }) {
       </div>
 
       <h3
-        className="line-clamp-2 text-[17px] font-medium leading-snug text-fg"
+        className="line-clamp-2 text-[17px] font-medium leading-snug text-fg group-hover:underline"
         style={{ fontFamily: FONT.serif }}
         title={file.title}
       >

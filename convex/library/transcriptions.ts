@@ -52,6 +52,17 @@ export const requestTranscription = mutation({
       .withIndex("by_file", (q) => q.eq("fileId", fileId))
       .first();
 
+    // Don't downgrade an in-flight or finished transcription back to pending —
+    // status transitions are enforced server-side, not just in the UI.
+    if (
+      existing &&
+      (existing.status === "processing" || existing.status === "completed")
+    ) {
+      throw new Error(
+        `Cannot request transcription while status is "${existing.status}"`,
+      );
+    }
+
     if (existing) {
       await ctx.db.patch(existing._id, {
         status: "pending",

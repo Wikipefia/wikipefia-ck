@@ -58,10 +58,14 @@ export const get = query({
   },
 });
 
-/** Internal: resolve a subject by id (used by the ingest action for its slug). */
+/** Internal: resolve a subject by id (used by the ingest action for its slug).
+ * Returns null for ids that aren't actually subjects, so files can't be
+ * attached to teacher/system projects via a crafted id. */
 export const getByIdInternal = internalQuery({
   args: { subjectId: v.id("projects") },
   handler: async (ctx, { subjectId }) => {
-    return await ctx.db.get(subjectId);
+    const project = await ctx.db.get(subjectId);
+    if (!project || project.type !== "subject") return null;
+    return project;
   },
 });

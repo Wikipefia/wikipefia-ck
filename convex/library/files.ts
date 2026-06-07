@@ -198,7 +198,14 @@ export const getDownloadUrl = query({
   },
 });
 
-/** Patch editable metadata fields. Does not touch storage, tags, or ratings. */
+/**
+ * Patch editable metadata fields. Does not touch storage, tags, or ratings.
+ *
+ * The editor sends the full editable set on every save, so a field is *cleared*
+ * by sending an empty string (text) or `null` (numbers): we map those to
+ * `undefined`, which removes the field via `ctx.db.patch`. A key that is absent
+ * entirely is left unchanged.
+ */
 export const updateMetadata = mutation({
   args: {
     fileId: v.id("libraryFiles"),
@@ -206,20 +213,46 @@ export const updateMetadata = mutation({
     description: v.optional(v.string()),
     documentType: v.optional(documentTypeValidator),
     language: v.optional(v.string()),
-    year: v.optional(v.number()),
+    year: v.optional(v.union(v.number(), v.null())),
     authorName: v.optional(v.string()),
     sourceUrl: v.optional(v.string()),
-    pageCount: v.optional(v.number()),
+    pageCount: v.optional(v.union(v.number(), v.null())),
     customFields: v.optional(v.record(v.string(), v.string())),
   },
   handler: async (ctx, { fileId, ...patch }) => {
     const file = await ctx.db.get(fileId);
     if (!file) throw new Error("File not found");
-    // Only include keys the caller actually provided.
+
     const updates: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(patch)) {
-      if (value !== undefined) updates[key] = value;
+    const setText = (key: string, value: string | undefined) => {
+      if (value === undefined) return;
+      const trimmed = value.trim();
+      updates[key] = trimmed === "" ? undefined : trimmed;
+    };
+    const setNumber = (key: string, value: number | null | undefined) => {
+      if (value === undefined) return;
+      updates[key] = value === null || !Number.isFinite(value) ? undefined : value;
+    };
+
+    // Title is required — never cleared; falls back to the original filename.
+    if (patch.title !== undefined) {
+      updates.title = patch.title.trim() || file.originalName;
     }
+    if (patch.documentType !== undefined) {
+      updates.documentType = patch.documentType;
+    }
+    setText("description", patch.description);
+    setText("language", patch.language);
+    setText("authorName", patch.authorName);
+    setText("sourceUrl", patch.sourceUrl);
+    setNumber("year", patch.year);
+    setNumber("pageCount", patch.pageCount);
+    if (patch.customFields !== undefined) {
+      updates.customFields = Object.keys(patch.customFields).length
+        ? patch.customFields
+        : undefined;
+    }
+
     await ctx.db.patch(fileId, updates);
     return { ok: true };
   },
@@ -238,30 +271,12 @@ export const remove = mutation({
     // Delete the permanent blob from Convex Storage.
     await ctx.storage.delete(file.storageId);
 
-    // Cascade child rows. Counts are small per-file; take(500) is a safe bound.
-    const comments = await ctx.db
-      .query("libraryComments")
-      .withIndex("by_file", (q) => q.eq("fileId", fileId))
-      .take(500);
-    for (const c of comments) await ctx.db.delete(c._id);
-
-    const ratings = await ctx.db
-      .query("libraryRatings")
-      .withIndex("by_file", (q) => q.eq("fileId", fileId))
-      .take(500);
-    for (const r of ratings) await ctx.db.delete(r._id);
-
-    const tags = await ctx.db
-      .query("libraryFileTags")
-      .withIndex("by_file", (q) => q.eq("fileId", fileId))
-      .take(500);
-    for (const t of tags) await ctx.db.delete(t._id);
-
-    const transcription = await ctx.db
-      .query("libraryTranscriptions")
-      .withIndex("by_file", (q) => q.eq("fileId", fileId))
-      .first();
-    if (transcription) await ctx.db.delete(transcription._id);
+    // Cascade child rows in batches until each relation is fully drained, so
+    // files with >500 comments/ratings/tags don't leave orphaned rows.
+    await deleteAllByFile(ctx, "libraryComments", fileId);
+    await deleteAllByFile(ctx, "libraryRatings", fileId);
+    await deleteAllByFile(ctx, "libraryFileTags", fileId);
+    await deleteAllByFile(ctx, "libraryTranscriptions", fileId);
 
     await bumpSubjectCount(ctx, file.subjectId, -1);
 
@@ -269,3 +284,27 @@ export const remove = mutation({
     return { ok: true };
   },
 });
+
+/** Delete every row of a `by_file`-indexed child table for a file, in batches. */
+async function deleteAllByFile(
+  ctx: MutationCtx,
+  table:
+    | "libraryComments"
+    | "libraryRatings"
+    | "libraryFileTags"
+    | "libraryTranscriptions",
+  fileId: Id<"libraryFiles">,
+) {
+  // Bounded per-batch; loops until the relation is empty. (For pathological
+  // counts this could approach mutation limits — acceptable for v1; a scheduled
+  // continuation would be the next step.)
+  for (;;) {
+    const batch = await ctx.db
+      .query(table)
+      .withIndex("by_file", (q) => q.eq("fileId", fileId))
+      .take(200);
+    if (batch.length === 0) break;
+    for (const row of batch) await ctx.db.delete(row._id);
+    if (batch.length < 200) break;
+  }
+}

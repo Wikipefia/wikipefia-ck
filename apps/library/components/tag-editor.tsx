@@ -23,8 +23,13 @@ export function TagEditor({
     e.preventDefault();
     const tag = value.trim();
     if (!tag) return;
-    setValue("");
-    await addTag({ fileId, tag });
+    // Keep the typed tag until the server confirms the add.
+    try {
+      await addTag({ fileId, tag });
+      setValue("");
+    } catch {
+      // Leave the draft for the user to retry.
+    }
   }
 
   return (
@@ -43,7 +48,9 @@ export function TagEditor({
             #{tag}
             <button
               type="button"
-              onClick={() => removeTag({ fileId, tag })}
+              onClick={() => {
+                removeTag({ fileId, tag }).catch(() => {});
+              }}
               className="text-muted transition-colors hover:text-danger"
               aria-label={`Remove tag ${tag}`}
             >
@@ -57,6 +64,7 @@ export function TagEditor({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder="Add a tag…"
+          aria-label="Add a tag"
         />
         <Button type="submit" variant="outline" size="sm" className="shrink-0">
           Add

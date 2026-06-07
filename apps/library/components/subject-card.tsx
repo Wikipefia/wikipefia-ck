@@ -20,7 +20,7 @@ export function SubjectCard({ subject }: { subject: SubjectWithCount }) {
 
       <div>
         <h3
-          className="text-[19px] font-semibold leading-snug text-fg"
+          className="text-[19px] font-semibold leading-snug text-fg group-hover:underline"
           style={{ fontFamily: FONT.serif }}
         >
           {subject.name}

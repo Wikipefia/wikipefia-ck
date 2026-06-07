@@ -22,6 +22,14 @@ export function RatingStars({
   const rate = useMutation(api.library.ratings.rate);
   const [hover, setHover] = useState(0);
 
+  async function submitRating(value: number) {
+    try {
+      await rate({ fileId, value });
+    } catch {
+      // Swallow — a failed rating just doesn't register; nothing to undo.
+    }
+  }
+
   return (
     <div className="flex items-center gap-3">
       {/* biome-ignore lint/a11y/noStaticElementInteractions: hover reset is presentational; controls are the nested buttons. */}
@@ -33,7 +41,7 @@ export function RatingStars({
               key={star}
               type="button"
               onMouseEnter={() => setHover(star)}
-              onClick={() => rate({ fileId, value: star })}
+              onClick={() => submitRating(star)}
               className="cursor-pointer px-0.5 text-2xl leading-none transition-transform hover:scale-110"
               aria-label={`Rate ${star} star${star > 1 ? "s" : ""}`}
             >

@@ -274,7 +274,9 @@ export default defineSchema({
     tag: v.string(),
   })
     .index("by_file", ["fileId"])
-    .index("by_tag", ["tag"]),
+    .index("by_tag", ["tag"])
+    // Exact (file, tag) lookups for dedupe/removal regardless of tag count.
+    .index("by_file_and_tag", ["fileId", "tag"]),
 
   /**
    * Groundwork for the FUTURE transcription service (not implemented in v1).
